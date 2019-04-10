@@ -3,7 +3,6 @@ import numpy as np
 import scipy.constants as sc
 
 
-@numba.jit("float64(float64, float64, string)")
 def fermi(en, temp, units='reduced'):
     """Calculate the Fermi Function given some energy and some temperature.
     Parameters
@@ -21,6 +20,18 @@ def fermi(en, temp, units='reduced'):
     -------
     result : float
         The Fermi Function at en and temp."""
+    # coerce inputs into numpy array and set up output array
+    en = np.atleast_1d(en)
+    temp = np.atleast_1d(temp)
+    assert (temp >= 0).all(), "Temperature must be >= 0."
+    if temp.size == 1 and en.size != 1:
+        temp = np.ones(en.size) * temp
+    elif en.size == 1 and temp.size != 1:
+        en = np.ones(temp.size) * en
+    elif en.size != temp.size:
+        raise ValueError("Incompatible array sizes")
+    result = np.zeros(en.size)
+
     # convert temperature to joules
     if units in ['Joules', 'joules', 'j', 'J']:
         kbt = sc.k * temp
@@ -32,20 +43,10 @@ def fermi(en, temp, units='reduced'):
         kbt = temp
     else:
         raise ValueError("Unknown units requested.")
-    # skip calculation if something easy is requested
-    if en == 0:
-        result = 0.5
-    elif temp == 0:
-        if en < 0:
-            result = 1
-        elif en > 0:
-            result = 0
-        else:
-            raise ValueError("Energy must be a real number.")
-    # compute Fermi function (equivalent to 1 / (1 + e^(en/kbt))
-    # tanh is better behaved for very large or small values of en/kbt
-    elif temp > 0:
-        result = 0.5 * (1 - np.tanh(0.5 * en / kbt))
-    else:
-        raise ValueError("Temperature must be >= 0.")
+
+    # compute the fermi function
+    result[np.logical_and(temp == 0, en < 0)] = 1
+    result[np.logical_and(temp == 0, en > 0)] = 0
+    result[temp > 0] = 0.5 * (1 - np.tanh(0.5 * en[temp > 0] / kbt[temp > 0]))  # tanh() is better behaved than exp()
+
     return result
