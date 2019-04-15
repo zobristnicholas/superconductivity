@@ -31,8 +31,8 @@ def limit(temp, freq, delta0):
     Extension of Mattis-Bardeen theory to a complex gap parameter covered in
         Noguchi T. et al. Physics Proc., 36, 2012.
         Noguchi T. et al. IEEE Trans. Appl. SuperCon., 28, 4, 2018.
-    The real part of the gap is assumed to follow the BCS temperature dependence
-        expanded at low temperatures. See equation 2.53 in
+    The real part of the gap is assumed to follow the BCS temperature
+        dependence expanded at low temperatures. See equation 2.53 in
         Gao J. 2008. CalTech. PhD dissertation.
     No temperature dependence is assumed for the complex portion of the gap
         parameter.
@@ -66,11 +66,12 @@ def limit(temp, freq, delta0):
     return sigma1 + 1j * sigma2
 
 
-def numerical(temp, freq, delta0, bcs=1.764):
+def numeric(temp, freq, delta0, bcs=1.764):
     """
     Numerically calculate the complex conductivity to normal conductivity
-    ratio by integrating given some temperature, frequency and transition temperature,
-    where hf < ∆ (tones with frequency, f, do not break Cooper pairs).
+    ratio by integrating given some temperature, frequency and transition
+    temperature, where hf < ∆ (tones with frequency, f, do not break Cooper
+    pairs).
     Parameters
     ----------
     temp : iterable of size N
@@ -95,13 +96,13 @@ def numerical(temp, freq, delta0, bcs=1.764):
     t = temp * sc.k / delta
     w = sc.h * freq / delta
     # set the temperature independent bounds for integrals
-    a1, b1, b2 = 1, np.inf, np.pi / 2
+    a1, b1, b2 = 1, np.inf, 1
     # allocate memory for arrays
     sigma1 = np.zeros(temp.size)
     sigma2 = np.zeros(temp.size)
     # compute the integral by looping over inputs
     for ii in range(temp.size):
-        a2 = np.arcsin(1 - w[ii])
+        a2 = 1 - w[ii]
         sigma1[ii] = it.quad(sigma1_kernel, a1, b1, args=(t[ii], w[ii]))[0]
         sigma2[ii] = it.quad(sigma2_kernel, a2, b2, args=(t[ii], w[ii]))[0]
 
@@ -111,7 +112,8 @@ def numerical(temp, freq, delta0, bcs=1.764):
 def sigma1_kernel(e, t, w):
     """
     Calculate the kernel of the integral for the real part of the complex
-    conductivity where hf < ∆ (tones with frequency, f, do not break Cooper pairs).
+    conductivity where E = hf < ∆ (tones with frequency, f, do not break Cooper
+    pairs).
     Parameters
     ----------
     e: numpy.ndarray
@@ -130,16 +132,16 @@ def sigma1_kernel(e, t, w):
     return k
 
 
-def sigma2_kernel(y, t, w):
+def sigma2_kernel(e, t, w):
     """
     Calculate the kernel of the integral for the imaginary part of the complex
-    conductivity where hf < ∆ (tones with frequency, f, do not break Cooper pairs)
-    for arcsin(1 - w) < y < pi / 2. Using e = sin(y) substitution in the
+    conductivity where E = hf < ∆ (tones with frequency, f, do not break Cooper
+    pairs) for arcsin(1 - w) < y < pi / 2. Using e = sin(y) substitution in the
     dimensionless integral.
     Parameters
     ----------
-    y: numpy.ndarray
-        e = sin(y) where e is the reduced energy (E / ∆)
+    e: numpy.ndarray
+        reduced energy (E / ∆)
     t: float
         reduced temperature (kB T / ∆)
     w: float
@@ -147,9 +149,10 @@ def sigma2_kernel(y, t, w):
     Returns
     -------
     k: numpy.ndarray
-        The kernel for the integral for the imaginary part of the complex conductivity
+        The kernel for the integral for the imaginary part of the complex
+        conductivity
     """
-    k = ((1 - 2 * fermi(np.sin(y) + w, t)) * (np.sin(y)**2 + w * np.sin(y) + 1) /
-         (w * np.sqrt((np.sin(y) + w)**2 - 1)))
+    k = ((1 - 2 * fermi(e + w, t)) * (e**2 + w * e + 1) /
+         (w * np.sqrt(1 - e**2) * np.sqrt((e + w)**2 - 1)))
     return k
 

@@ -26,8 +26,9 @@ def reduced_delta_bcs(t, bcs=1.764):
         The reduced superconducting BCS energy gap ∆(T)/∆(0).
     Notes
     ----
-    Values of bcs other than the default result in a discontinuity at temp / tc = .3
-        since the tabulated data from Muhlschlegel is only valid for bcs = 1.764.
+    Values of bcs other than the default result in a discontinuity at
+        temp / tc = .3 since the tabulated data from Muhlschlegel is only
+        valid for bcs = 1.764.
     Tabulated data from Muhlschlegel (1959).
     Low-temperature analytic formula from Gao (2008).
     """
@@ -66,8 +67,9 @@ def delta_bcs(temp, tc, bcs=1.764):
         The superconducting BCS energy gap ∆(T).
     Notes
     ----
-    Values of bcs other than the default result in a discontinuity at temp / tc = .3
-        since the tabulated data from Muhlschlegel is only valid for bcs = 1.764.
+    Values of bcs other than the default result in a discontinuity at
+        temp / tc = .3 since the tabulated data from Muhlschlegel is only
+        valid for bcs = 1.764.
     Tabulated data from Muhlschlegel (1959).
     Low-temperature analytic formula from Gao (2008).
     """
