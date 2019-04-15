@@ -4,7 +4,8 @@ import scipy.constants as sc
 
 
 def fermi(en, temp, units='reduced'):
-    """Calculate the Fermi Function given some energy and some temperature.
+    """
+    Calculate the Fermi Function given some energy and some temperature.
     Parameters
     ----------
     en : float
@@ -19,7 +20,8 @@ def fermi(en, temp, units='reduced'):
     Returns
     -------
     result : float
-        The Fermi Function at en and temp."""
+        The Fermi Function at en and temp.
+    """
     # coerce inputs into numpy array and set up output array
     en = np.atleast_1d(en)
     temp = np.atleast_1d(temp)
