@@ -44,13 +44,13 @@ def reduced_delta_bcs(t, bcs=1.764):
     # Taken from Gao 2008
     logic = np.logical_and(t < 0.3, t >= 0.005)
     dr[logic] = np.exp(-np.sqrt(2 * np.pi * t[logic] / bcs) * np.exp(-bcs / t[logic]))
-    # for low temperatures set to 1 to avoid numeric issues
-    dr[t < 0.005] = 1
+    # for low temperatures set to 1 because floats don't have any more precision
+    dr[np.logical_and(t >= 0, t < 0.005)] = 1
 
     return dr
 
 
-def delta_bcs(temp, tc, bcs=1.764):
+def delta_bcs(temp, tc, bcs=BCS):
     """
     Return the temperature dependent BCS gap ∆(T).
     Parameters
