@@ -155,4 +155,3 @@ def sigma2_kernel(e, t, w):
     k = ((1 - 2 * fermi(e + w, t)) * (e**2 + w * e + 1) /
          (w * np.sqrt(1 - e**2) * np.sqrt((e + w)**2 - 1)))
     return k
-
