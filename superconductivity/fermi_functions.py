@@ -2,15 +2,17 @@ import numba
 import numpy as np
 import scipy.constants as sc
 
+from superconductivity.utils import coerce_arrays
+
 
 def fermi(en, temp, units='reduced'):
     """
     Calculate the Fermi Function given some energy and some temperature.
     Parameters
     ----------
-    en : float
+    en : float, iterable of size N
         Energy relative to the fermi energy (E-Ef) in units of Joules or eV.
-    temp : float
+    temp : float, iterable of size N
         Temperature in units of Kelvin.
     units : string (optional)
         Select units of energy. Acceptable values are ``'joules' or 'eV' or
@@ -23,15 +25,8 @@ def fermi(en, temp, units='reduced'):
         The Fermi Function at en and temp.
     """
     # coerce inputs into numpy array and set up output array
-    en = np.atleast_1d(en)
-    temp = np.atleast_1d(temp)
+    en, temp = coerce_arrays(en, temp)
     assert (temp >= 0).all(), "Temperature must be >= 0."
-    if temp.size == 1 and en.size != 1:
-        temp = np.ones(en.size) * temp
-    elif en.size == 1 and temp.size != 1:
-        en = np.ones(temp.size) * en
-    elif en.size != temp.size:
-        raise ValueError("Incompatible array sizes")
     result = np.zeros(en.size)
 
     # convert temperature to joules

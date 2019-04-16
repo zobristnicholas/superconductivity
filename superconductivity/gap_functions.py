@@ -2,6 +2,9 @@ import numpy as np
 import scipy.constants as sc
 import scipy.interpolate as si
 
+from superconductivity.utils import BCS
+
+
 # These data points run from t=0.18 to t=1
 # in steps of 0.02 from Muhlschlegel (1959)
 _d = [1.0, 0.9999, 0.9997, 0.9994, 0.9989, 0.9982, 0.9971, 0.9957, 0.9938, 0.9915, 0.9885, 0.985, 0.9809, 0.976,
@@ -11,7 +14,7 @@ _t = np.linspace(0.18, 1, len(_d))
 reduced_delta_muhlschlegel = si.InterpolatedUnivariateSpline(_t, _d, k=3)
 
 
-def reduced_delta_bcs(t, bcs=1.764):
+def reduced_delta_bcs(t, bcs=BCS):
     """
     Return the reduced temperature dependent BCS gap ∆(T)/∆(0).
     Parameters
