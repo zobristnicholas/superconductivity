@@ -1,2 +1,2 @@
 # superconductivity
-tools for computing the properties of superconductors
+Tools for computing the properties of superconductors

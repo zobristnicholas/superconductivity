@@ -1,7 +1,10 @@
 from setuptools import setup, find_packages
 
+version_number = '0.0'
+
+
 setup(name='superconductivity',
-      description='tools for computing the properties of superconductors',
+      description='Tools for computing the properties of superconductors',
       version=version_number,
       author='Nicholas Zobrist',
       license='GPLv3',
