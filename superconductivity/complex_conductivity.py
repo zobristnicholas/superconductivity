@@ -145,10 +145,10 @@ def numeric(temp, freq, delta0, gamma=0, bcs=BCS):
     sigma1 = np.zeros(temp.shape)
     sigma2 = np.zeros(temp.shape)
     # compute the integral by looping over inputs
-    for ii in np.ndenumerate(temp.size):
+    for ii, _ in np.ndenumerate(temp):
         a2 = 1 - w[ii]
-        sigma1[ii] = it.quad(sigma1_kernel, a1, b1, args=(t[ii], w[ii], g))[0]
-        sigma2[ii] = it.quad(sigma2_kernel, a2, b2, args=(t[ii], w[ii], g))[0]
+        sigma1[ii] = it.quad(sigma1_kernel, a1, b1, args=(t[ii], w[ii], g[ii]))[0]
+        sigma2[ii] = it.quad(sigma2_kernel, a2, b2, args=(t[ii], w[ii], g[ii]))[0]
 
     return sigma1 - 1j * sigma2
 
