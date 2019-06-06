@@ -27,8 +27,7 @@ def value(temp, freq, delta0, low_energy=False, gamma=0, bcs=BCS):
         (h f << ∆ and kB T << ∆). Can dramatically speed up computation time.
         Default is False.
     gamma: float (optional)
-        reduced Dynes parameter (gamma / ∆). The default is 0. Can only use if
-        low_energy is False.
+        Dynes parameter. The default is 0. Can only use if low_energy is False.
     bcs: bool (optional)
         Use the bcs constant where applicable. Only used for numeric
         computations of the complex conductivity. The default is
@@ -43,9 +42,9 @@ def value(temp, freq, delta0, low_energy=False, gamma=0, bcs=BCS):
             raise ValueError("'gamma' can not be used with 'low_energy'")
         if bcs != BCS:
             raise ValueError("'bcs' can not be used with 'low_energy'")
-        sigma = cc.limit(temp, freq, delta0)
+        sigma = limit(temp, freq, delta0)
     else:
-        sigma = cc.numeric(temp, freq, delta0=delta0, gamma=gamma, bcs=bcs)
+        sigma = numeric(temp, freq, delta0=delta0, gamma=gamma, bcs=bcs)
     return sigma
 
 
