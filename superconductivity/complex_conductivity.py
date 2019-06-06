@@ -82,20 +82,26 @@ def limit(temp, freq, delta0):
     assert (temp >= 0).all(), "Temperature must be >= 0."
     # break up gap into real and imaginary parts
     delta1 = np.real(delta0)
-    delta2 = np.imag(delta1)
+    delta2 = np.imag(delta0)
     # allocate memory for complex conductivity
     sigma1 = np.zeros(freq.size)
     sigma2 = np.zeros(freq.size)
+    # separate out zero temperature
+    zero = (temp == 0)
+    not_zero = (temp != 0)
+    freq0 = freq[zero]
+    freq1 = freq[not_zero]
+    temp1 = temp[not_zero]
     # define some parameters
-    xi = sc.h * freq / (2 * sc.k * temp[temp != 0])
-    eta = delta1 / (sc.k * temp[temp != 0])
+    xi = sc.h * freq1 / (2 * sc.k * temp1)
+    eta = delta1 / (sc.k * temp1)
     # calculate complex conductivity
-    sigma1[temp == 0] = np.pi * delta2 / (sc.h * freq[temp == 0])
-    sigma2[temp == 0] = np.pi * delta1 / (sc.h * freq[temp == 0])
-    sigma1[temp != 0] = (4 * delta1 / (sc.h * freq) * np.exp(-eta) * np.sinh(xi) * sp.k0(xi) +
-                         np.pi * delta2 / (sc.h * freq) *
-                         (1 + 2 * delta1 / (sc.k * temp) * np.exp(-eta) * np.exp(-xi) * sp.i0(xi)))
-    sigma2[temp != 0] = np.pi * delta1 / (sc.h * freq) * (1 - np.sqrt(2 * np.pi / eta) * np.exp(-eta) -
+    sigma1[zero] = np.pi * delta2 / (sc.h * freq0)
+    sigma2[zero] = np.pi * delta1 / (sc.h * freq0)
+    sigma1[not_zero] = (4 * delta1 / (sc.h * freq1) * np.exp(-eta) * np.sinh(xi) * sp.k0(xi) +
+                        np.pi * delta2 / (sc.h * freq1) *
+                        (1 + 2 * delta1 / (sc.k * temp1) * np.exp(-eta) * np.exp(-xi) * sp.i0(xi)))
+    sigma2[not_zero] = np.pi * delta1 / (sc.h * freq1) * (1 - np.sqrt(2 * np.pi / eta) * np.exp(-eta) -
                                                           2 * np.exp(-eta) * np.exp(-xi) * sp.i0(xi))
     return sigma1 - 1j * sigma2
 
