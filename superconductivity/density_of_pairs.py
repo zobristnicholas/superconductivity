@@ -3,9 +3,9 @@ import numpy as np
 from numpy.lib.scimath import sqrt  # sqrt that doesn't error on negative floats
 
 
-def dos_bcs(en, delta, real=True):
+def dop_bcs(en, delta, real=True):
     """
-    Compute the density of states for a generic BCS superconductor.
+    Compute the density of pairs for a generic BCS superconductor.
     Parameters
     ----------
     en: float, numpy.ndarray
@@ -17,22 +17,22 @@ def dos_bcs(en, delta, real=True):
         valued density of states function is returned. The default is True.
     Returns
     -------
-    dos: numpy.ndarray
-        density of states as a function of en
+    dop: numpy.ndarray
+        density of pairs as a function of en
     """
     en = np.atleast_1d(en)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)  # divide by zero
-        dos = np.sign(en) * en / sqrt(en**2 - delta**2)
+        dop = np.sign(en) * delta / sqrt(en**2 - delta**2)
     if not real:  # imaginary part has the wrong sign for energies less than zero
         logic = (en < 0)
-        dos[logic] = np.conj(dos[logic])
-    return dos.real if real else dos
+        dop[logic] = np.conj(dop[logic])
+    return dop.real if real else dop
 
 
-def dos_dynes(en, delta, gamma, real=True):
+def dop_dynes(en, delta, gamma, real=True):
     """
-    Compute the density of states for a Dynes superconductor. Functional
+    Compute the density of pairs for a Dynes superconductor. Functional
     form from Herman T. et al. Phys. Rev. B, 96, 1, 2017.
     Parameters
     ----------
@@ -47,11 +47,11 @@ def dos_dynes(en, delta, gamma, real=True):
         valued density of states function is returned. The default is True.
     Returns
     -------
-    dos: numpy.ndarray
-        density of states as a function of en
+    dop: numpy.ndarray
+        density of pairs as a function of en
     """
     en = np.atleast_1d(en)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)  # divide by zero
-        dos = np.sign(en) * (en + 1j * gamma) / sqrt((en + 1j * gamma)**2 - delta**2)
-    return dos.real if real else dos
+        dop = np.sign(en) * delta / sqrt((en + 1j * gamma)**2 - delta**2)
+    return dop.real if real else dop
