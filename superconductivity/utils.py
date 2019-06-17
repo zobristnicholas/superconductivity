@@ -1,6 +1,6 @@
 import numpy as np
 
-BCS = 1.764
+BCS = np.pi / np.exp(np.euler_gamma)
 
 
 def coerce_arrays(array1, array2):
