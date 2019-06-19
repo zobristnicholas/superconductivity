@@ -46,7 +46,8 @@ reduced_delta_bcs_interp.__doc__ = """
     """
 
 
-def reduced_delta_bcs(t, interp=True, approx=True):
+
+def reduced_delta_bcs(t, interp=True, approx=False):
     """
     Return the reduced temperature dependent BCS gap ∆(T)/∆(0).
     Parameters
@@ -55,10 +56,10 @@ def reduced_delta_bcs(t, interp=True, approx=True):
         The reduced temperature  (T / Tc).
     interp: boolean (optional)
         Use interpolated values from reduced_delta_bcs_interp instead of
-        recalculating numerically (much faster).
+        recalculating numerically (much faster). The default is True.
     approx: boolean (optional)
         Use the low temperature approximation below 0.2 Tc instead of
-        recalculating numerically (much faster).
+        recalculating numerically (much faster). The default is False.
     Returns
     -------
     dr : float
@@ -80,8 +81,8 @@ def reduced_delta_bcs(t, interp=True, approx=True):
         a = np.exp(-np.sqrt(2 * np.pi * t[crossover] / BCS) * np.exp(-BCS / t[crossover]))
         end = (t > 0.3) & (t < 1)
         if interp:
-            dr[end] = reduced_delta_interp(t[end])
-            i = reduced_delta_interp(t[crossover])
+            dr[end] = reduced_delta_bcs_interp(t[end])
+            i = reduced_delta_bcs_interp(t[crossover])
         else:
             dr[end] = reduced_delta_bcs_numeric(t[end])
             i = reduced_delta_bcs_numeric(t[crossover])
@@ -89,7 +90,7 @@ def reduced_delta_bcs(t, interp=True, approx=True):
     else:
         logic = (t >= 0.005) & (t < 1)
         if interp:
-            dr[logic] = reduced_delta_interp(t[logic])
+            dr[logic] = reduced_delta_bcs_interp(t[logic])
         else:
             dr[logic] = reduced_delta_bcs_numeric(t[logic])
     return dr
@@ -121,7 +122,7 @@ def reduced_delta_bcs_numeric(t):
     return dr
 
 
-def _self_consistent_bcs(dr, t=0):
+def _self_consistent_bcs(dr, t):
     if dr == 0:
         return -np.inf
     return np.log(dr) + 2 * it.quad(_integrand_bcs, 0, np.inf, args=(dr, t))[0]
@@ -131,7 +132,7 @@ def _integrand_bcs(x, dr, t):
     return 1 / np.sqrt(x**2 + 1) / (np.exp(BCS * dr / t * np.sqrt(x**2 + 1)) + 1)
 
 
-def delta_bcs(temp, tc, bcs=BCS, interp=True, approx=True):
+def delta_bcs(temp, tc, bcs=BCS, interp=True, approx=False):
     """
     Return the temperature dependent BCS gap ∆(T).
     Parameters
@@ -141,21 +142,19 @@ def delta_bcs(temp, tc, bcs=BCS, interp=True, approx=True):
     tc: float
         The superconducting transition temperature.
     bcs: float (optional)
-        The bcs constant. It isn't exactly constant across superconductors.
+        The BCS constant. It isn't exactly constant across superconductors.
     interp: boolean (optional)
         Use interpolated values from reduced_delta_bcs_interp instead of
-        recalculating numerically (much faster).
+        recalculating numerically (much faster). The default is True.
     approx: boolean (optional)
         Use the low temperature approximation below 0.2 Tc instead of
-        recalculating numerically (much faster).
+        recalculating numerically (much faster). The default is False.
     Returns
     -------
     delta : float
         The superconducting BCS energy gap ∆(T).
     Notes
     ----
-    Tabulated data from Muhlschlegel (1959).
-    Low-temperature analytic formula from Gao (2008).
     """
     dr = reduced_delta_bcs(temp / tc, interp=interp, approx=approx)
     return bcs * sc.k * tc * dr
