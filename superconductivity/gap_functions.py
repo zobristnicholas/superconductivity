@@ -14,8 +14,8 @@ _dr = [1.0, 0.9999, 0.9997, 0.9994, 0.9989, 0.9982, 0.9971, 0.9957, 0.9938, 0.99
        0.9704, 0.9641, 0.9569, 0.9488, 0.9399, 0.9299, 0.919, 0.907, 0.8939, 0.8796, 0.864, 0.8471, 0.8288, 0.8089,
        0.7874, 0.764, 0.7386, 0.711, 0.681, 0.648, 0.6117, 0.5715, 0.5263, 0.4749, 0.4148, 0.3416, 0.2436, 0.0]
 _t = np.linspace(0.18, 1, len(_dr))
-reduced_delta_muhlschlegel = si.InterpolatedUnivariateSpline(_t, _dr, k=3)
-reduced_delta_muhlschlegel.__doc__ = """
+reduced_delta_bcs_muhlschlegel = si.interp1d(_t, _dr, kind="cubic")
+reduced_delta_bcs_muhlschlegel.__doc__ = """
     Return the reduced temperature dependent BCS gap ∆(T)/∆(0) using
     an interpolation from data in Muhlschlegel (1959).
     Parameters
@@ -29,9 +29,9 @@ reduced_delta_muhlschlegel.__doc__ = """
     ----
     """
 
-_npz = np.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bcs_gap.npz"))  # calculated from bcs_numeric()
-reduced_delta_interp = si.InterpolatedUnivariateSpline(_npz["t"], _npz["dr"], k=3)
-reduced_delta_interp.__doc__ = """
+_npz = np.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bcs_gap.npz"))  # from bcs_numeric()
+reduced_delta_bcs_interp = si.interp1d(_npz["t"], _npz["dr"], kind="cubic")
+reduced_delta_bcs_interp.__doc__ = """
     Return the reduced temperature dependent BCS gap ∆(T)/∆(0) using
     an interpolation from data calculated from reduced_delta_bcs_numeric(). 
     Parameters
