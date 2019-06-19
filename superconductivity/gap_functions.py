@@ -1,5 +1,7 @@
 import os
+import warnings
 import numpy as np
+import scipy.special as sp
 import scipy.constants as sc
 import scipy.integrate as it
 import scipy.optimize as opt
@@ -45,6 +47,23 @@ reduced_delta_bcs_interp.__doc__ = """
     ----
     """
 
+_npz = np.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dynes_gap.npz"))  # from dynes_numeric()
+reduced_delta_dynes_interp = si.interp2d(_npz["t"], _npz["g"], _npz["dr"], kind="cubic")
+reduced_delta_dynes_interp.__doc__ = """
+    Return the reduced temperature dependent Dynes gap ∆(T)/∆(0) using
+    an interpolation from data calculated from reduced_delta_dynes_numeric(). 
+    Parameters
+    ----------
+    t : float or numpy.ndarray
+        The reduced temperature  (T / Tc).
+    g: float
+        The reduced Dynes parameter (gamma / delta0).
+    Returns
+    -------
+    dr : float
+        The reduced superconducting Dynes energy gap ∆(T)/∆(0).
+    ----
+    """
 
 
 def reduced_delta_bcs(t, interp=True, approx=False):
@@ -158,3 +177,125 @@ def delta_bcs(temp, tc, bcs=BCS, interp=True, approx=False):
     """
     dr = reduced_delta_bcs(temp / tc, interp=interp, approx=approx)
     return bcs * sc.k * tc * dr
+
+
+def reduced_delta_dynes(t, g, interp=True):
+    """
+    Return the reduced temperature dependent Dynes gap ∆(T)/∆(0).
+    Parameters
+    ----------
+    t : float or numpy.ndarray
+        The reduced temperature  (T / Tc).
+    g: float
+        The reduced Dynes parameter (gamma / delta0).
+    interp: boolean (optional)
+        Use interpolated values from reduced_delta_dynes_interp instead of
+        recalculating numerically (much faster). The default is True.
+    Returns
+    -------
+    dr : float
+        The reduced superconducting Dynes energy gap ∆(T)/∆(0).
+    ----
+    """
+    # coerce inputs into numpy array and set up output array
+    t = np.atleast_1d(t)
+    dr = np.empty(t.shape)
+    # set the gap out of the valid range to zero
+    dr[np.logical_or(t >= 1, t < 0)] = 0
+    logic = (t >= 0) & (t < 1)
+    if interp:
+        dr[logic] = reduced_delta_dynes_interp(t[logic], g)
+    else:
+        dr[logic] = reduced_delta_dynes_numeric(t[logic], g)
+    return dr
+
+
+def reduced_delta_dynes_numeric(t, g):
+    """
+    Return the reduced temperature dependent gap ∆(T)/∆(0) of a Dynes
+    superconductor calculated numerically.
+    Parameters
+    ----------
+    t : float or numpy.ndarray
+        The reduced temperature  (T / Tc).
+    g: float
+        The reduced Dynes parameter (gamma / delta0).
+    Returns
+    -------
+    dr : float
+        The reduced superconducting BCS energy gap ∆(T)/∆(0).
+    ----
+    """
+    if g == 0:
+        return reduced_delta_bcs_numeric(t)
+    t = np.atleast_1d(t)
+    dr = np.empty(t.shape)
+    for index, ti in enumerate(t):
+        if ti == 0:
+            dr[index] = 1
+        elif ti == 1:
+            dr[index] = 0
+        else:
+            dr[index] = opt.brentq(_self_consistent_dynes, 1, 0, args=(ti, g))
+    return dr
+
+
+def _self_consistent_dynes(dr, t, g):
+    tc = _tc_dynes(g)
+    if dr == 0:
+        return -np.inf
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        try:
+            lhs = np.log(dr) + 0.5 * np.log(dr**2 * (2 * g * (g - np.sqrt(g**2 + 1)) + 1) /
+                                                    (2 * g * (g - np.sqrt(g**2 + dr**2)) + dr**2))
+        except RuntimeWarning:  # invalid value in log .. use low dr expansion
+            lhs = (0.5 * np.log(8 * g * (g - np.sqrt(g**2 + 1)) + 4) + np.log(g) + 0.25 * (dr / g)**2 -
+                   3 / 32 * (dr / g)**4 + 5 / 96 * (dr / g)**6 - 35 / 1024 * (dr / g)**8)
+        rhs = (it.quad(_integrand_dynes, 0, 0.01, args=(dr, t, g, tc))[0] +
+               it.quad(_integrand_dynes, 0.01, 0.1, args=(dr, t, g, tc))[0] +
+               it.quad(_integrand_dynes, 0.1, 1, args=(dr, t, g, tc))[0] +
+               it.quad(_integrand_dynes, 1, np.inf, args=(dr, t, g, tc))[0])
+    return lhs - rhs
+
+
+def _integrand_dynes(x, dr, t, g, tc):
+    return -2 * np.real(1 / np.sqrt((x + 1j * g)**2 - dr**2)) / (np.exp(BCS * x / t / tc / (g + np.sqrt(g**2 + 1))) + 1)
+
+
+def _tc_dynes_equation(tc, g):
+    if tc == 0:
+        return -np.inf
+    return sp.digamma(0.5 + BCS / (2 * np.pi * tc) * g / (g + np.sqrt(g**2 + 1))) - sp.digamma(0.5) + np.log(tc)
+
+
+def _tc_dynes(g):
+    return opt.brentq(_tc_dynes_equation, 0, 1, args=g, xtol=1e-20)
+
+
+def delta_dynes(temp, tc, g, bcs=BCS, interp=True):
+    """
+    Return the temperature dependent Dynes gap ∆(T).
+    Parameters
+    ----------
+    temp : float or numpy.ndarray
+        The temperature in Kelvin.
+    tc: float
+        The superconducting transition temperature.
+    g: float
+        The reduced Dynes parameter (gamma / delta0).
+    bcs: float (optional)
+        The BCS constant. It isn't exactly constant across superconductors.
+    interp: boolean (optional)
+        Use interpolated values from reduced_delta_bcs_interp instead of
+        recalculating numerically (much faster). The default is True.
+    Returns
+    -------
+    delta : float
+        The superconducting Dynes energy gap ∆(T).
+    Notes
+    ----
+    """
+    dr = reduced_delta_dynes(temp / tc, g, interp=interp)
+
+    return bcs * sc.k * tc * dr / ((g + np.sqrt(g**2 + 1)) * _tc_dynes(g))
