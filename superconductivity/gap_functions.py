@@ -270,6 +270,7 @@ def _tc_dynes_equation(tc, g):
 
 
 def _tc_dynes(g):
+    """Tc_dynes / Tc_bcs"""
     return opt.brentq(_tc_dynes_equation, 0, 1, args=g, xtol=1e-20)
 
 
