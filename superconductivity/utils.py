@@ -34,3 +34,11 @@ def split_sigma(sigma):
     This is mainly here so that minus signs don't get messed up.
     """
     return sigma.real, -sigma.imag
+
+
+def combine_sigma(sigma1, sigma2):
+    """
+    Combine the complex conductivity into one complex number. This is mainly
+    here so that minus signs don't get messed up.
+    """
+    return sigma1 - 1j * sigma2

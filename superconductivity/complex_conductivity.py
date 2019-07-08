@@ -1,16 +1,17 @@
-import numba
+import warnings
 import numpy as np
 import scipy.special as sp
 import scipy.constants as sc
 import scipy.integrate as it
 
 from superconductivity.fermi_functions import fermi
-from superconductivity.utils import coerce_arrays, BCS
-from superconductivity.density_of_states import dos_bcs
-from superconductivity.gap_functions import reduced_delta_bcs
+from superconductivity.density_of_pairs import dop_bcs, dop_dynes
+from superconductivity.density_of_states import dos_bcs, dos_dynes
+from superconductivity.gap_functions import delta_bcs, delta_dynes
+from superconductivity.utils import coerce_arrays, BCS, combine_sigma
 
 
-def value(temp, freq, delta0, low_energy=False, gamma=0, bcs=BCS):
+def value(temp, freq, tc, low_energy=False, gamma=0, d=0, bcs=BCS):
     """
     Calculate the complex conductivity to normal conductivity ratio.
     Parameters
@@ -19,19 +20,22 @@ def value(temp, freq, delta0, low_energy=False, gamma=0, bcs=BCS):
         Temperature in units of Kelvin.
     freq: float, iterable of size N
         Frequency in units of Hz.
-    delta0: float, complex
-        Superconducting gap energy at 0 Kelvin in units of Joules. An imaginary
-        part signifies finite loss at zero temperature.
+    tc: float
+        The transition temperature in units of Kelvin.
     low_energy: bool (optional)
         Use the low energy limit formulas for the complex conductivity
-        (h f << ∆ and kB T << ∆). Can dramatically speed up computation time.
-        Default is False.
+        (h f << ∆ and kB T << ∆). It can dramatically speed up computation
+        time. The default is False.
     gamma: float (optional)
-        Dynes parameter. The default is 0. Can only use if low_energy is False.
+        reduced Dynes parameter (gamma / ∆). The default is 0. It can only be
+        used if low_energy is False.
+    d: float (optional)
+        Ratio of the imaginary gap to the real gap energy at zero temperature.
+        It can only be used if low_energy is True.
     bcs: bool (optional)
         Use the bcs constant where applicable. Only used for numeric
         computations of the complex conductivity. The default is
-        superconductivity.utils.BCS
+        superconductivity.utils.BCS.
     Returns
     -------
     sigma : numpy.ndarray, dtype=numpy.complex128
@@ -40,15 +44,15 @@ def value(temp, freq, delta0, low_energy=False, gamma=0, bcs=BCS):
     if low_energy:
         if gamma != 0:
             raise ValueError("'gamma' can not be used with 'low_energy'")
-        if bcs != BCS:
-            raise ValueError("'bcs' can not be used with 'low_energy'")
-        sigma = limit(temp, freq, delta0)
+        sigma = limit(temp, freq, tc, d=d, bcs=bcs)
     else:
-        sigma = numeric(temp, freq, delta0=delta0, gamma=gamma, bcs=bcs)
+        if d != 0:
+            raise ValueError("'d' can only be used with 'low_energy'")
+        sigma = numeric(temp, freq, tc, gamma=gamma, bcs=bcs)
     return sigma
 
 
-def limit(temp, freq, delta0):
+def limit(temp, freq, tc, d=0, bcs=BCS):
     """
     Calculate the approximate complex conductivity to normal conductivity
     ratio in the limit hf << ∆ and kB T << ∆ given some temperature, frequency
@@ -59,9 +63,13 @@ def limit(temp, freq, delta0):
         Temperature in units of Kelvin.
     freq : float, iterable of size N
         Frequency in units of Hz.
-    delta0: float, complex
-        Superconducting gap energy at 0 Kelvin in units of Joules. An imaginary
-        part signifies finite loss at zero temperature.
+    tc: float
+        The transition temperature in units of Kelvin.
+    d: float (optional)
+        Ratio of the imaginary gap to the real gap energy at zero temperature.
+    bcs: float (optional)
+        BCS constant that relates the gap to the transition temperature.
+        ∆ = bcs * kB * Tc. The default is superconductivity.utils.BCS.
     Returns
     -------
     sigma : numpy.ndarray, dtype=numpy.complex128
@@ -81,8 +89,8 @@ def limit(temp, freq, delta0):
     temp, freq = coerce_arrays(temp, freq)
     assert (temp >= 0).all(), "Temperature must be >= 0."
     # break up gap into real and imaginary parts
-    delta1 = np.real(delta0)
-    delta2 = np.imag(delta0)
+    delta1 = delta_bcs(0, tc, bcs=bcs)
+    delta2 = d * delta1
     # allocate memory for complex conductivity
     sigma1 = np.zeros(freq.size)
     sigma2 = np.zeros(freq.size)
@@ -103,10 +111,10 @@ def limit(temp, freq, delta0):
                         (1 + 2 * delta1 / (sc.k * temp1) * np.exp(-eta) * np.exp(-xi) * sp.i0(xi)))
     sigma2[not_zero] = np.pi * delta1 / (sc.h * freq1) * (1 - np.sqrt(2 * np.pi / eta) * np.exp(-eta) -
                                                           2 * np.exp(-eta) * np.exp(-xi) * sp.i0(xi))
-    return sigma1 - 1j * sigma2
+    return combine_sigma(sigma1, sigma2)
 
 
-def numeric(temp, freq, delta0, gamma=0, bcs=BCS):
+def numeric(temp, freq, tc, gamma=0, bcs=BCS):
     """
     Numerically calculate the complex conductivity to normal conductivity
     ratio by integrating given some temperature, frequency and transition
@@ -118,13 +126,42 @@ def numeric(temp, freq, delta0, gamma=0, bcs=BCS):
         Temperature in units of Kelvin.
     freq : float, iterable of size N
         Frequency in units of Hz.
-    delta0: float
-        Superconducting gap energy at 0 Kelvin in units of Joules.
-    gamma: float
+    tc: float
+        The transition temperature in units of Kelvin.
+    gamma: float (optional)
         reduced Dynes parameter (gamma / ∆). The default is 0.
     bcs: float (optional)
         BCS constant that relates the gap to the transition temperature.
-        ∆ = bcs * kB * Tc. The default is superconductivity.utils.BCS
+        ∆ = bcs * kB * Tc. The default is superconductivity.utils.BCS.
+    Returns
+    -------
+    sigma : numpy.ndarray, dtype=numpy.complex128
+        The complex conductivity at temp and freq.
+    """
+    if gamma == 0:
+        sigma = mattis_bardeen_numeric(temp, freq, tc, bcs=bcs)
+    else:
+        sigma = dynes_numeric(temp, freq, gamma, tc, bcs=bcs)
+    return sigma
+
+
+def mattis_bardeen_numeric(temp, freq, tc, bcs=BCS):
+    """
+    Numerically calculate the complex conductivity to normal conductivity
+    ratio by integrating given some temperature, frequency and transition
+    temperature, where hf < ∆ (tones with frequency, f, do not break Cooper
+    pairs).
+    Parameters
+    ----------
+    temp : float, iterable of size N
+        Temperature in units of Kelvin.
+    freq : float, iterable of size N
+        Frequency in units of Hz.
+    tc: float
+        The transition temperature in units of Kelvin.
+    bcs: float (optional)
+        BCS constant that relates the gap to the transition temperature.
+        ∆ = bcs * kB * Tc. The default is superconductivity.utils.BCS.
     Returns
     -------
     sigma : numpy.ndarray, dtype=numpy.complex128
@@ -134,11 +171,10 @@ def numeric(temp, freq, delta0, gamma=0, bcs=BCS):
     temp, freq = coerce_arrays(temp, freq)
     assert (temp >= 0).all(), "Temperature must be >= 0."
     # get the temperature dependent gap
-    delta = delta0 * reduced_delta_bcs(bcs * sc.k * temp / delta0, bcs=bcs)
+    delta = delta_bcs(temp, tc, bcs=bcs)
     # calculate unitless reduced temperature and frequency
     t = temp * sc.k / delta
     w = sc.h * freq / delta
-    g = gamma / delta
     # set the temperature independent bounds for integrals
     a1, b1, b2 = 1, np.inf, 1
     # allocate memory for arrays
@@ -147,17 +183,63 @@ def numeric(temp, freq, delta0, gamma=0, bcs=BCS):
     # compute the integral by looping over inputs
     for ii, _ in np.ndenumerate(temp):
         a2 = 1 - w[ii]
-        sigma1[ii] = it.quad(sigma1_kernel, a1, b1, args=(t[ii], w[ii], g[ii]))[0]
-        sigma2[ii] = it.quad(sigma2_kernel, a2, b2, args=(t[ii], w[ii], g[ii]))[0]
+        sigma1[ii] = it.quad(mattis_bardeen_kernel1, a1, b1, args=(t[ii], w[ii]))[0]
+        sigma2[ii] = it.quad(mattis_bardeen_kernel2, a2, b2, args=(t[ii], w[ii]))[0]
 
-    return sigma1 - 1j * sigma2
+    return combine_sigma(sigma1, sigma2)
 
 
-def sigma1_kernel(e, t, w, g=0):
+def dynes_numeric(temp, freq, gamma, tc, bcs=BCS):
     """
-    Calculate the kernel of the integral for the real part of the complex
-    conductivity where E = hf < ∆ (tones with frequency, f, do not break Cooper
+    Numerically calculate the complex conductivity to normal conductivity
+    ratio by integrating given some temperature, frequency and transition
+    temperature, where hf < ∆ (tones with frequency, f, do not break Cooper
     pairs).
+    Parameters
+    ----------
+    temp : float, iterable of size N
+        Temperature in units of Kelvin.
+    freq : float, iterable of size N
+        Frequency in units of Hz.
+    tc: float
+        The transition temperature in units of Kelvin.
+    gamma: float
+        reduced Dynes parameter (gamma / ∆).
+    bcs: float (optional)
+        BCS constant that relates the gamma=0 gap to the gamma=0 transition
+        temperature. ∆00 = bcs * kB * Tc0. The default is
+        superconductivity.utils.BCS.
+    Returns
+    -------
+    sigma : numpy.ndarray, dtype=numpy.complex128
+        The complex conductivity at temp and freq.
+    """
+    # coerce inputs into numpy array
+    temp, freq = coerce_arrays(temp, freq)
+    assert (temp >= 0).all(), "Temperature must be >= 0."
+    # get the temperature dependent gap
+    delta = delta_dynes(temp, tc, gamma, bcs=bcs)
+    # calculate unitless reduced temperature and frequency
+    t = temp * sc.k / delta
+    w = sc.h * freq / delta
+    g = np.full(delta.shape, gamma)
+    # allocate memory for arrays
+    sigma1 = np.zeros(temp.shape)
+    sigma2 = np.zeros(temp.shape)
+    # compute the integral by looping over inputs
+    for ii, _ in np.ndenumerate(temp):
+        points = (-1 - w[ii], -1, 1 - w[ii], 1)
+        sigma1[ii] = it.quad(dynes_kernel1, -1e2, 1e2, args=(t[ii], w[ii], g[ii]), limit=200, points=points)[0]
+        sigma2[ii] = it.quad(dynes_kernel2, -1e2, 1e2, args=(t[ii], w[ii], g[ii]), limit=200, points=points)[0]
+
+    return combine_sigma(sigma1, sigma2)
+
+
+def mattis_bardeen_kernel1(e, t, w):
+    """
+    Calculate the Mattis-Bardeen kernel of the integral for sigma1 of the
+    complex conductivity where E = hf < 2 ∆ (tones with frequency, f, do not
+    break Cooper pairs).
     Parameters
     ----------
     e: numpy.ndarray
@@ -166,24 +248,48 @@ def sigma1_kernel(e, t, w, g=0):
         reduced temperature (kB T / ∆)
     w: float
         reduced frequency (h f / ∆)
-    g: float (optional)
-        reduced Dynes parameter (gamma / ∆). The default is 0.
     Returns
     -------
     k: numpy.ndarray
-        The kernel for the integral for the real part of the complex conductivity
+        The kernel for the integral for sigma1
     """
-    k = (2 * (fermi(e, t) - fermi(e + w, t)) * (e ** 2 + w * e + 1) *
-         dos_bcs(e, 1, gamma=g, norm=True) * dos_bcs(e + w, 1, gamma=g, norm=True)) / w
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)  # multiply by inf
+        k = 2 * (fermi(e, t) - fermi(e + w, t)) * (dos_bcs(e, 1, real=True) * dos_bcs(e + w, 1, real=True) +
+                                                   dop_bcs(e, 1, real=True) * dop_bcs(e + w, 1, real=True)) / w
     return k
 
 
-def sigma2_kernel(e, t, w, g=0):
+def mattis_bardeen_kernel2(e, t, w):
     """
-    Calculate the kernel of the integral for the imaginary part of the complex
-    conductivity where E = hf < ∆ (tones with frequency, f, do not break Cooper
-    pairs) for arcsin(1 - w) < y < pi / 2. Using e = sin(y) substitution in the
-    dimensionless integral.
+    Calculate the Mattis-Bardeen kernel of the integral for sigma2 of the
+    complex conductivity where E = hf < 2 ∆ (tones with frequency, f, do not
+    break Cooper pairs).
+    Parameters
+    ----------
+    e: numpy.ndarray
+        reduced energy (E / ∆)
+    t: float
+        reduced temperature (kB T / ∆)
+    w: float
+        reduced frequency (h f / ∆)
+    Returns
+    -------
+    k: numpy.ndarray
+        The kernel for the integral for sigma2
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)  # multiply by inf
+        k = -(1 - 2 * fermi(e + w, t)) * (dos_bcs(e, 1, real=False) * dos_bcs(e + w, 1, real=True) +
+                                          dop_bcs(e, 1, real=False) * dop_bcs(e + w, 1, real=True)) / w
+    return k
+
+
+def dynes_kernel1(e, t, w, g):
+    """
+    Calculate the Dynes kernel of the integral for sigma1 of the complex
+    conductivity where E = hf < 2 ∆ (tones with frequency, f, do not break
+    Cooper pairs). From Herman et al. Phys. Rev. B, 96, 1, 2017.
     Parameters
     ----------
     e: numpy.ndarray
@@ -193,13 +299,41 @@ def sigma2_kernel(e, t, w, g=0):
     w: float
         reduced frequency (h f / ∆)
     g: float
-        reduced Dynes parameter (gamma / ∆). The default is 0.
+        reduced Dynes parameter (gamma / ∆).
     Returns
     -------
     k: numpy.ndarray
-        The kernel for the integral for the imaginary part of the complex
-        conductivity
+        The kernel for the integral for sigma1
     """
-    k = ((1 - 2 * fermi(e + w, t)) * (e**2 + w * e + 1) *
-         (1j * dos_bcs(e, 1, gamma=g, abs_real=False, norm=True)).real * dos_bcs(e + w, 1, gamma=g, norm=True)) / w
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)  # multiply by inf
+        k = (fermi(e, t) - fermi(e + w, t)) * (dos_dynes(e, 1, g, real=True) * dos_dynes(e + w, 1, g, real=True) +
+                                               dop_dynes(e, 1, g, real=True) * dop_dynes(e + w, 1, g, real=True)) / w
+    return k
+
+
+def dynes_kernel2(e, t, w, g):
+    """
+    Calculate the Dynes kernel of the integral for sigma2 of the complex
+    conductivity where E = hf < 2 ∆ (tones with frequency, f, do not break
+    Cooper pairs). From Herman et al. Phys. Rev. B, 96, 1, 2017.
+    Parameters
+    ----------
+    e: numpy.ndarray
+        reduced energy (E / ∆)
+    t: float
+        reduced temperature (kB T / ∆)
+    w: float
+        reduced frequency (h f / ∆)
+    g: float
+        reduced Dynes parameter (gamma / ∆).
+    Returns
+    -------
+    k: numpy.ndarray
+        The kernel for the integral for sigma2
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)  # multiply by inf
+        k = -(1 - 2 * fermi(e, t)) * (dos_dynes(e, 1, g, real=True) * dos_dynes(e + w, 1, g, real=False) +
+                                      dop_dynes(e, 1, g, real=True) * dop_dynes(e + w, 1, g, real=False)) / w
     return k
