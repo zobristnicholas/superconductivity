@@ -11,7 +11,7 @@ from superconductivity.gap_functions import delta_bcs, delta_dynes
 from superconductivity.utils import coerce_arrays, BCS, combine_sigma
 
 
-def value(temp, freq, tc, low_energy=False, gamma=0, d=0, bcs=BCS):
+def value(temp, freq, tc, gamma=0, d=0, low_energy=False, bcs=BCS):
     """
     Calculate the complex conductivity to normal conductivity ratio.
     Parameters
@@ -22,16 +22,16 @@ def value(temp, freq, tc, low_energy=False, gamma=0, d=0, bcs=BCS):
         Frequency in units of Hz.
     tc: float
         The transition temperature in units of Kelvin.
-    low_energy: bool (optional)
-        Use the low energy limit formulas for the complex conductivity
-        (h f << ∆ and kB T << ∆). It can dramatically speed up computation
-        time. The default is False.
     gamma: float (optional)
         reduced Dynes parameter (gamma / ∆). The default is 0. It can only be
         used if low_energy is False.
     d: float (optional)
         Ratio of the imaginary gap to the real gap energy at zero temperature.
         It can only be used if low_energy is True.
+    low_energy: bool (optional)
+        Use the low energy limit formulas for the complex conductivity
+        (h f << ∆ and kB T << ∆). It can dramatically speed up computation
+        time. The default is False.
     bcs: bool (optional)
         Use the bcs constant where applicable. Only used for numeric
         computations of the complex conductivity. The default is
