@@ -8,9 +8,9 @@ def coerce_arrays(array1, array2):
     array1 = np.atleast_1d(array1)
     array2 = np.atleast_1d(array2)
     if array2.size == 1 and array1.size != 1:
-        array2 = np.ones(array1.shape) * array2
+        array2 = np.full(array1.shape, array2)
     elif array1.size == 1 and array2.size != 1:
-        array1 = np.ones(array2.shape) * array1
+        array1 = np.full(array2.shape, array1)
     elif array1.shape != array2.shape:
         raise ValueError("Incompatible array sizes")
     return array1, array2

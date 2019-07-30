@@ -27,7 +27,6 @@ def fermi(en, temp, units='reduced'):
     # coerce inputs into numpy array and set up output array
     en, temp = coerce_arrays(en, temp)
     assert (temp >= 0).all(), "Temperature must be >= 0."
-    result = np.empty(en.size)
     # convert temperature to joules
     if units in ['Joules', 'joules', 'j', 'J']:
         kbt = sc.k * temp
@@ -40,6 +39,7 @@ def fermi(en, temp, units='reduced'):
     else:
         raise ValueError("Unknown units requested.")
     # compute the fermi function
+    result = np.empty(en.shape)
     _fermi(result, en, kbt)
     return result
 
