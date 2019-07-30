@@ -1,5 +1,5 @@
-import numba
 import numpy as np
+import numba as nb
 import scipy.constants as sc
 
 from superconductivity.utils import coerce_arrays
@@ -27,8 +27,7 @@ def fermi(en, temp, units='reduced'):
     # coerce inputs into numpy array and set up output array
     en, temp = coerce_arrays(en, temp)
     assert (temp >= 0).all(), "Temperature must be >= 0."
-    result = np.zeros(en.size)
-
+    result = np.empty(en.size)
     # convert temperature to joules
     if units in ['Joules', 'joules', 'j', 'J']:
         kbt = sc.k * temp
@@ -40,10 +39,15 @@ def fermi(en, temp, units='reduced'):
         kbt = temp
     else:
         raise ValueError("Unknown units requested.")
-
     # compute the fermi function
-    result[np.logical_and(temp == 0, en < 0)] = 1
-    result[np.logical_and(temp == 0, en > 0)] = 0
-    result[temp > 0] = 0.5 * (1 - np.tanh(0.5 * en[temp > 0] / kbt[temp > 0]))  # tanh() is better behaved than exp()
-
+    _fermi(result, en, kbt)
     return result
+
+
+@nb.njit
+def _fermi(data, en, kbt):
+    data[(kbt == 0) & (en < 0)] = 1
+    data[(kbt == 0) & (en == 0)] = 0.5
+    data[(kbt == 0) & (en > 0)] = 0
+    data[kbt > 0] = 0.5 * (1 - np.tanh(0.5 * en[kbt > 0] / kbt[kbt > 0]))  # tanh() is better behaved than exp()
+
