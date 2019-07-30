@@ -1,6 +1,5 @@
-import warnings
 import numpy as np
-from numpy.lib.scimath import sqrt  # sqrt that doesn't error on negative floats
+import numba as nb
 
 
 def dop_bcs(en, delta, real=True):
@@ -23,12 +22,8 @@ def dop_bcs(en, delta, real=True):
         density of pairs as a function of en
     """
     en = np.atleast_1d(en)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)  # divide by zero
-        dop = np.sign(en) * delta / sqrt(en**2 - delta**2)
-    if not real:  # imaginary part has the wrong sign for energies less than zero
-        logic = (en < 0)
-        dop[logic] = np.conj(dop[logic])
+    dop = np.empty(en.shape, dtype=np.complex)
+    _dop(dop, en, delta, 0, real=real)
     return dop.real if real else dop.imag
 
 
@@ -55,7 +50,15 @@ def dop_dynes(en, delta, gamma, real=True):
         density of pairs as a function of en
     """
     en = np.atleast_1d(en)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)  # divide by zero
-        dop = np.sign(en) * delta / sqrt((en + 1j * gamma)**2 - delta**2)
+    dop = np.empty(en.shape, dtype=np.complex)
+    _dop(dop, en, delta, gamma, real=real)
     return dop.real if real else dop.imag
+
+
+@nb.njit
+def _dop(data, en, delta, gamma, real=True):
+    zero = np.sqrt((en + 1j * gamma)**2 - delta**2) == 0
+    data[zero & (en > 0)] = np.inf if real else -1j * np.inf
+    data[zero & (en <= 0)] = -np.inf if real else -1j * np.inf
+    en_c = en[~zero] + 1j * gamma
+    data[~zero] = np.sign(en[~zero] + 1j) * delta / np.sqrt(en_c**2 - delta**2)
