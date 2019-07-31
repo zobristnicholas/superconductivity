@@ -3,6 +3,7 @@ import numpy as np
 import scipy.special as sp
 import scipy.constants as sc
 import scipy.integrate as it
+import multiprocessing as mp
 
 from superconductivity.fermi_functions import fermi
 from superconductivity.density_of_pairs import dop_bcs, dop_dynes
@@ -11,7 +12,7 @@ from superconductivity.gap_functions import delta_bcs, delta_dynes
 from superconductivity.utils import coerce_arrays, BCS, combine_sigma
 
 
-def value(temp, freq, tc, gamma=0, d=0, bcs=BCS, low_energy=False):
+def value(temp, freq, tc, gamma=0, d=0, bcs=BCS, low_energy=False, parallel=False):
     """
     Calculate the complex conductivity to normal conductivity ratio.
     Parameters
@@ -36,6 +37,11 @@ def value(temp, freq, tc, gamma=0, d=0, bcs=BCS, low_energy=False):
         Use the low energy limit formulas for the complex conductivity
         (h f << ∆ and kB T << ∆). It can dramatically speed up computation
         time. The default is False.
+    parallel: multiprocessing.Pool or boolean (optional)
+        A multiprocessing pool object to use for the computation. The default
+        is False, and the computation is done in serial. If True, a Pool object
+        is created with multiprocessing.cpu_count() CPUs. Only used if
+        low_energy is False.
     Returns
     -------
     sigma : numpy.ndarray, dtype=numpy.complex128
@@ -48,7 +54,7 @@ def value(temp, freq, tc, gamma=0, d=0, bcs=BCS, low_energy=False):
     else:
         if d != 0:
             raise ValueError("'d' can only be used with 'low_energy'")
-        sigma = numeric(temp, freq, tc, gamma=gamma, bcs=bcs)
+        sigma = numeric(temp, freq, tc, gamma=gamma, bcs=bcs, parallel=parallel)
     return sigma
 
 
@@ -114,7 +120,7 @@ def limit(temp, freq, tc, d=0, bcs=BCS):
     return combine_sigma(sigma1, sigma2)
 
 
-def numeric(temp, freq, tc, gamma=0, bcs=BCS):
+def numeric(temp, freq, tc, gamma=0, bcs=BCS, parallel=False):
     """
     Numerically calculate the complex conductivity to normal conductivity
     ratio by integrating given some temperature, frequency and transition
@@ -133,19 +139,23 @@ def numeric(temp, freq, tc, gamma=0, bcs=BCS):
     bcs: float (optional)
         BCS constant that relates the gap to the transition temperature.
         ∆ = bcs * kB * Tc. The default is superconductivity.utils.BCS.
+    parallel: multiprocessing.Pool or boolean (optional)
+        A multiprocessing pool object to use for the computation. The default
+        is False, and the computation is done in serial. If True, a Pool object
+        is created with multiprocessing.cpu_count() CPUs.
     Returns
     -------
     sigma : numpy.ndarray, dtype=numpy.complex128
         The complex conductivity at temp and freq.
     """
     if gamma == 0:
-        sigma = mattis_bardeen_numeric(temp, freq, tc, bcs=bcs)
+        sigma = mattis_bardeen_numeric(temp, freq, tc, bcs=bcs, parallel=parallel)
     else:
-        sigma = dynes_numeric(temp, freq, gamma, tc, bcs=bcs)
+        sigma = dynes_numeric(temp, freq, gamma, tc, bcs=bcs, parallel=parallel)
     return sigma
 
 
-def mattis_bardeen_numeric(temp, freq, tc, bcs=BCS):
+def mattis_bardeen_numeric(temp, freq, tc, bcs=BCS, parallel=False):
     """
     Numerically calculate the complex conductivity to normal conductivity
     ratio by integrating given some temperature, frequency and transition
@@ -162,6 +172,10 @@ def mattis_bardeen_numeric(temp, freq, tc, bcs=BCS):
     bcs: float (optional)
         BCS constant that relates the gap to the transition temperature.
         ∆ = bcs * kB * Tc. The default is superconductivity.utils.BCS.
+    parallel: multiprocessing.Pool or boolean (optional)
+        A multiprocessing pool object to use for the computation. The default
+        is False, and the computation is done in serial. If True, a Pool object
+        is created with multiprocessing.cpu_count() CPUs.
     Returns
     -------
     sigma : numpy.ndarray, dtype=numpy.complex128
@@ -175,21 +189,24 @@ def mattis_bardeen_numeric(temp, freq, tc, bcs=BCS):
     # calculate unitless reduced temperature and frequency
     t = temp * sc.k / delta
     w = sc.h * freq / delta
-    # set the temperature independent bounds for integrals
-    a1, b1, b2 = 1, np.inf, 1
-    # allocate memory for arrays
-    sigma1 = np.zeros(temp.shape)
-    sigma2 = np.zeros(temp.shape)
+    # make pool if needed
+    if parallel is True:
+        parallel = mp.Pool(processes=mp.cpu_count())
     # compute the integral by looping over inputs
-    for ii, _ in np.ndenumerate(temp):
-        a2 = 1 - w[ii]
-        sigma1[ii] = it.quad(mattis_bardeen_kernel1, a1, b1, args=(t[ii], w[ii]))[0]
-        sigma2[ii] = it.quad(mattis_bardeen_kernel2, a2, b2, args=(t[ii], w[ii]))[0]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)  # multiply inf by 0 warning
+        if parallel:
+            args = [(t[ii], w[ii]) for ii, _ in np.ndenumerate(temp)]
+            sigma = parallel.starmap(mattis_bardeen_integral, args)
+            sigma = np.array(sigma).reshape(temp.shape)
+        else:
+            sigma = np.empty(temp.shape, dtype=np.complex)
+            for ii, _ in np.ndenumerate(temp):
+                sigma[ii] = mattis_bardeen_integral(t[ii], w[ii])
+    return sigma
 
-    return combine_sigma(sigma1, sigma2)
 
-
-def dynes_numeric(temp, freq, gamma, tc, bcs=BCS):
+def dynes_numeric(temp, freq, gamma, tc, bcs=BCS, parallel=False):
     """
     Numerically calculate the complex conductivity to normal conductivity
     ratio by integrating given some temperature, frequency and transition
@@ -209,6 +226,10 @@ def dynes_numeric(temp, freq, gamma, tc, bcs=BCS):
         BCS constant that relates the gamma=0 gap to the gamma=0 transition
         temperature. ∆00 = bcs * kB * Tc0. The default is
         superconductivity.utils.BCS.
+    parallel: multiprocessing.Pool or boolean (optional)
+        A multiprocessing pool object to use for the computation. The default
+        is False, and the computation is done in serial. If True, a Pool object
+        is created with multiprocessing.cpu_count() CPUs.
     Returns
     -------
     sigma : numpy.ndarray, dtype=numpy.complex128
@@ -222,17 +243,22 @@ def dynes_numeric(temp, freq, gamma, tc, bcs=BCS):
     # calculate unitless reduced temperature and frequency
     t = temp * sc.k / delta
     w = sc.h * freq / delta
-    g = np.full(delta.shape, gamma)
-    # allocate memory for arrays
-    sigma1 = np.zeros(temp.shape)
-    sigma2 = np.zeros(temp.shape)
+    g = np.full(temp.shape, gamma)
+    # make pool if needed
+    if parallel is True:
+        parallel = mp.Pool(processes=mp.cpu_count())
     # compute the integral by looping over inputs
-    for ii, _ in np.ndenumerate(temp):
-        points = (-1 - w[ii], -1, 1 - w[ii], 1)
-        sigma1[ii] = it.quad(dynes_kernel1, -1e2, 1e2, args=(t[ii], w[ii], g[ii]), limit=200, points=points)[0]
-        sigma2[ii] = it.quad(dynes_kernel2, -1e2, 1e2, args=(t[ii], w[ii], g[ii]), limit=200, points=points)[0]
-
-    return combine_sigma(sigma1, sigma2)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)  # multiply inf by 0 warning
+        if parallel:
+            args = [(t[ii], w[ii], g[ii]) for ii, _ in np.ndenumerate(temp)]
+            sigma = parallel.starmap(dynes_integral, args)
+            sigma = np.array(sigma).reshape(temp.shape)
+        else:
+            sigma = np.empty(temp.shape, dtype=np.complex)
+            for ii, _ in np.ndenumerate(temp):
+                sigma[ii] = dynes_integral(t[ii], w[ii], g[ii])
+    return sigma
 
 
 def mattis_bardeen_kernel1(e, t, w):
@@ -253,10 +279,9 @@ def mattis_bardeen_kernel1(e, t, w):
     k: numpy.ndarray
         The kernel for the integral for sigma1
     """
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)  # multiply by inf
-        k = 2 * (fermi(e, t) - fermi(e + w, t)) * (dos_bcs(e, 1, real=True) * dos_bcs(e + w, 1, real=True) +
-                                                   dop_bcs(e, 1, real=True) * dop_bcs(e + w, 1, real=True)) / w
+    k = 2 * (fermi(e, t) - fermi(e + w, t)) * (dos_bcs(e, 1, real=True) * dos_bcs(e + w, 1, real=True) +
+                                               dop_bcs(e, 1, real=True) * dop_bcs(e + w, 1, real=True)) / w
+    k[np.isnan(k)] = 0
     return k
 
 
@@ -278,11 +303,30 @@ def mattis_bardeen_kernel2(e, t, w):
     k: numpy.ndarray
         The kernel for the integral for sigma2
     """
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)  # multiply by inf
-        k = -(1 - 2 * fermi(e + w, t)) * (dos_bcs(e, 1, real=False) * dos_bcs(e + w, 1, real=True) +
-                                          dop_bcs(e, 1, real=False) * dop_bcs(e + w, 1, real=True)) / w
+    k = -(1 - 2 * fermi(e + w, t)) * (dos_bcs(e, 1, real=False) * dos_bcs(e + w, 1, real=True) +
+                                      dop_bcs(e, 1, real=False) * dop_bcs(e + w, 1, real=True)) / w
+    k[np.isnan(k)] = 0
     return k
+
+
+def mattis_bardeen_integral(tii, wii):
+    """
+    Calculate the complex conductivity integral for a BCS superconductor at a
+    single point.
+    Parameters
+    ----------
+    tii: float
+        reduced temperature (kB T / ∆)
+    wii: float
+        reduced frequency (h f / ∆)
+    Returns
+    -------
+    sigma: numpy.ndarray
+        The complex conductivity
+    """
+    sigma1 = it.quad(mattis_bardeen_kernel1, 1, np.inf, args=(tii, wii))[0]
+    sigma2 = it.quad(mattis_bardeen_kernel2, 1 - wii, 1, args=(tii, wii))[0]
+    return combine_sigma(sigma1, sigma2)
 
 
 def dynes_kernel1(e, t, w, g):
@@ -305,10 +349,9 @@ def dynes_kernel1(e, t, w, g):
     k: numpy.ndarray
         The kernel for the integral for sigma1
     """
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)  # multiply by inf
-        k = (fermi(e, t) - fermi(e + w, t)) * (dos_dynes(e, 1, g, real=True) * dos_dynes(e + w, 1, g, real=True) +
-                                               dop_dynes(e, 1, g, real=True) * dop_dynes(e + w, 1, g, real=True)) / w
+    k = (fermi(e, t) - fermi(e + w, t)) * (dos_dynes(e, 1, g, real=True) * dos_dynes(e + w, 1, g, real=True) +
+                                           dop_dynes(e, 1, g, real=True) * dop_dynes(e + w, 1, g, real=True)) / w
+    k[np.isnan(k)] = 0
     return k
 
 
@@ -332,8 +375,30 @@ def dynes_kernel2(e, t, w, g):
     k: numpy.ndarray
         The kernel for the integral for sigma2
     """
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)  # multiply by inf
-        k = -(1 - 2 * fermi(e, t)) * (dos_dynes(e, 1, g, real=True) * dos_dynes(e + w, 1, g, real=False) +
-                                      dop_dynes(e, 1, g, real=True) * dop_dynes(e + w, 1, g, real=False)) / w
+    k = -(1 - 2 * fermi(e, t)) * (dos_dynes(e, 1, g, real=True) * dos_dynes(e + w, 1, g, real=False) +
+                                  dop_dynes(e, 1, g, real=True) * dop_dynes(e + w, 1, g, real=False)) / w
+    k[np.isnan(k)] = 0
     return k
+
+
+def dynes_integral(tii, wii, gii):
+    """
+    Calculate the complex conductivity integral for a Dynes superconductor at a
+    single point.
+    Parameters
+    ----------
+    tii: float
+        reduced temperature (kB T / ∆)
+    wii: float
+        reduced frequency (h f / ∆)
+    gii: float
+        reduced Dynes parameter (gamma / ∆).
+    Returns
+    -------
+    sigma: numpy.ndarray
+        The complex conductivity
+    """
+    points = (-1 - wii, -1, 1 - wii, 1)
+    sigma1 = it.quad(dynes_kernel1, -1e2, 1e2, args=(tii, wii, gii), limit=200, points=points)[0]
+    sigma2 = it.quad(dynes_kernel2, -1e2, 1e2, args=(tii, wii, gii), limit=200, points=points)[0]
+    return combine_sigma(sigma1, sigma2)
