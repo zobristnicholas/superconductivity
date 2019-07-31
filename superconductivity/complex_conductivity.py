@@ -190,6 +190,7 @@ def mattis_bardeen_numeric(temp, freq, tc, bcs=BCS, parallel=False):
     t = temp * sc.k / delta
     w = sc.h * freq / delta
     # make pool if needed
+    close = True if parallel is True else False
     if parallel is True:
         parallel = mp.Pool(processes=mp.cpu_count())
     # compute the integral by looping over inputs
@@ -199,6 +200,9 @@ def mattis_bardeen_numeric(temp, freq, tc, bcs=BCS, parallel=False):
             args = [(t[ii], w[ii]) for ii, _ in np.ndenumerate(temp)]
             sigma = parallel.starmap(mattis_bardeen_integral, args)
             sigma = np.array(sigma).reshape(temp.shape)
+            if close:
+                parallel.close()
+                parallel.join()
         else:
             sigma = np.empty(temp.shape, dtype=np.complex)
             for ii, _ in np.ndenumerate(temp):
@@ -245,6 +249,7 @@ def dynes_numeric(temp, freq, gamma, tc, bcs=BCS, parallel=False):
     w = sc.h * freq / delta
     g = np.full(temp.shape, gamma)
     # make pool if needed
+    close = True if parallel is True else False
     if parallel is True:
         parallel = mp.Pool(processes=mp.cpu_count())
     # compute the integral by looping over inputs
@@ -254,6 +259,9 @@ def dynes_numeric(temp, freq, gamma, tc, bcs=BCS, parallel=False):
             args = [(t[ii], w[ii], g[ii]) for ii, _ in np.ndenumerate(temp)]
             sigma = parallel.starmap(dynes_integral, args)
             sigma = np.array(sigma).reshape(temp.shape)
+            if close:
+                parallel.close()
+                parallel.join()
         else:
             sigma = np.empty(temp.shape, dtype=np.complex)
             for ii, _ in np.ndenumerate(temp):
