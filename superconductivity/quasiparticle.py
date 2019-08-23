@@ -34,6 +34,7 @@ def reduced_density_bcs(t, low_temp=False, bcs=BCS, **delta_kwargs):
     nqpr : float
         The reduced quasiparticle density.
     """
+    t = np.atleast_1d(t)
     nqpr = np.empty(t.shape)
     dr = reduced_delta_bcs(t, **delta_kwargs)
     zero = (t == 0)
@@ -111,6 +112,7 @@ def reduced_density_dynes(t, g, bcs=BCS, **delta_kwargs):
     """
     if g == 0:
         return reduced_density_bcs(t, bcs=bcs, **delta_kwargs)
+    t = np.atleast_1d(t)
     nqpr = np.empty(t.shape)
     dr = reduced_delta_dynes(t, g, **delta_kwargs)
     tcr = reduced_tc_dynes(g)
