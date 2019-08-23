@@ -11,7 +11,7 @@ def fermi(en, temp, units='reduced'):
     Parameters
     ----------
     en : float, iterable of size N
-        Energy relative to the fermi energy (E-Ef) in units of Joules or eV.
+        Energy relative to the fermi energy (E-Ef) in units of Kelvin, Joules or eV.
     temp : float, iterable of size N
         Temperature in units of Kelvin.
     units : string (optional)
