@@ -8,6 +8,8 @@ import scipy.optimize as opt
 import scipy.interpolate as si
 
 from superconductivity.utils import BCS
+from superconductivity.fermi_functions import fermi
+from superconductivity.density_of_pairs import dop_bcs, dop_dynes
 
 
 # These data points run from t=0.18 to t=1
@@ -144,11 +146,11 @@ def reduced_delta_bcs_numeric(t):
 def _self_consistent_bcs(dr, t):
     if dr == 0:
         return -np.inf
-    return np.log(dr) + 2 * it.quad(_integrand_bcs, 0, np.inf, args=(dr, t))[0]
+    return np.log(dr) - it.quad(_integrand_bcs, 0, np.inf, args=(dr, t))[0]
 
 
 def _integrand_bcs(x, dr, t):
-    return 1 / np.sqrt(x**2 + 1) / (np.exp(BCS * dr / t * np.sqrt(x**2 + 1)) + 1)
+    return -2 * dop_bcs(x, 1j, real=False) * fermi(np.sqrt(x**2 + 1), t / BCS / dr)
 
 
 def delta_bcs(temp, tc, bcs=BCS, interp=True, approx=False):
@@ -260,7 +262,7 @@ def _self_consistent_dynes(dr, t, g):
 
 
 def _integrand_dynes(x, dr, t, g, tc):
-    return -2 * np.real(1 / np.sqrt((x + 1j * g)**2 - dr**2)) / (np.exp(BCS * x / t / tc / (g + np.sqrt(g**2 + 1))) + 1)
+    return -2 * dop_dynes(x, 1, g / dr) * fermi(x, t / BCS / dr * tc * (g + np.sqrt(g**2 + 1)))
 
 
 def _tc_dynes_equation(tc, g):
