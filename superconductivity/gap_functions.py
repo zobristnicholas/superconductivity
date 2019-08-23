@@ -243,7 +243,7 @@ def reduced_delta_dynes_numeric(t, g):
 
 
 def _self_consistent_dynes(dr, t, g):
-    tc = _tc_dynes(g)
+    tcr = reduced_tc_dynes(g)
     if dr == 0:
         return -np.inf
     with warnings.catch_warnings():
@@ -254,15 +254,15 @@ def _self_consistent_dynes(dr, t, g):
         except RuntimeWarning:  # invalid value in log .. use low dr expansion
             lhs = (0.5 * np.log(8 * g * (g - np.sqrt(g**2 + 1)) + 4) + np.log(g) + 0.25 * (dr / g)**2 -
                    3 / 32 * (dr / g)**4 + 5 / 96 * (dr / g)**6 - 35 / 1024 * (dr / g)**8)
-        rhs = (it.quad(_integrand_dynes, 0, 0.01, args=(dr, t, g, tc))[0] +
-               it.quad(_integrand_dynes, 0.01, 0.1, args=(dr, t, g, tc))[0] +
-               it.quad(_integrand_dynes, 0.1, 1, args=(dr, t, g, tc))[0] +
-               it.quad(_integrand_dynes, 1, np.inf, args=(dr, t, g, tc))[0])
+        rhs = (it.quad(_integrand_dynes, 0, 0.01, args=(dr, t, g, tcr))[0] +
+               it.quad(_integrand_dynes, 0.01, 0.1, args=(dr, t, g, tcr))[0] +
+               it.quad(_integrand_dynes, 0.1, 1, args=(dr, t, g, tcr))[0] +
+               it.quad(_integrand_dynes, 1, np.inf, args=(dr, t, g, tcr))[0])
     return lhs - rhs
 
 
-def _integrand_dynes(x, dr, t, g, tc):
-    return -2 * dop_dynes(x, 1, g / dr) * fermi(x, t / BCS / dr * tc * (g + np.sqrt(g**2 + 1)))
+def _integrand_dynes(x, dr, t, g, tcr):
+    return -2 * dop_dynes(x, 1, g / dr) * fermi(x, t / BCS / dr * tcr * (g + np.sqrt(g ** 2 + 1)))
 
 
 def _tc_dynes_equation(tc, g):
@@ -271,8 +271,19 @@ def _tc_dynes_equation(tc, g):
     return sp.digamma(0.5 + BCS / (2 * np.pi * tc) * g / (g + np.sqrt(g**2 + 1))) - sp.digamma(0.5) + np.log(tc)
 
 
-def _tc_dynes(g):
-    """Tc_dynes / Tc_bcs"""
+def reduced_tc_dynes(g):
+    """
+    The ratio of the Dynes transition temperature to the transition temperature
+    if gamma = 0. (e.g. Tc_Dynes / Tc_BCS or Tc_Dynes(g) / Tc_Dynes(0))
+    Parameters
+    ----------
+    g: float
+        The reduced Dynes parameter (gamma / delta0).
+    Returns
+    -------
+    tc: float
+        The ratio of the Dynes Tc to the BCS Tc.
+    """
     return opt.brentq(_tc_dynes_equation, 0, 1, args=g, xtol=1e-20)
 
 
@@ -300,5 +311,5 @@ def delta_dynes(temp, tc, g, bcs=BCS, interp=True):
     ----
     """
     dr = reduced_delta_dynes(temp / tc, g, interp=interp)
-
-    return bcs * sc.k * tc * dr / ((g + np.sqrt(g**2 + 1)) * _tc_dynes(g))
+    tcr = reduced_tc_dynes(g)
+    return bcs * sc.k * tc * dr / ((g + np.sqrt(g**2 + 1)) * tcr)
