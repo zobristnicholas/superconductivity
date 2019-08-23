@@ -44,7 +44,7 @@ def fermi(en, temp, units='reduced'):
     return result
 
 
-@nb.njit
+@nb.njit(cache=True)
 def _fermi(data, en, kbt):
     data[(kbt == 0) & (en < 0)] = 1
     data[(kbt == 0) & (en == 0)] = 0.5

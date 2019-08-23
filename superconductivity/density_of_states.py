@@ -55,7 +55,7 @@ def dos_dynes(en, delta, gamma, real=True):
     return dos.real if real else dos.imag
 
 
-@nb.njit
+@nb.njit(cache=True)
 def _dos(data, en, delta, gamma, real=True):
     zero = np.sqrt((en + 1j * gamma)**2 - delta**2) == 0
     data[zero & (en > 0)] = np.inf if real else -1j * np.inf
