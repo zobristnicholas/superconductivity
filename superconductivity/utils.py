@@ -1,4 +1,5 @@
 import numpy as np
+from collections import OrderedDict
 
 BCS = np.pi / np.exp(np.euler_gamma)
 
@@ -42,3 +43,15 @@ def combine_sigma(sigma1, sigma2):
     here so that minus signs don't get messed up.
     """
     return sigma1 - 1j * sigma2
+
+
+class RotatingDict(OrderedDict):
+    """Ordered dictionary with a max size."""
+    def __init__(self, *args, max_size=10, **kwargs):
+        self.max_size = max_size
+        super().__init__(*args, **kwargs)
+
+    def __setitem__(self, key, value):
+        while len(self) >= self.max_size:
+            self.popitem(last=False)
+        super().__setitem__(key, value)

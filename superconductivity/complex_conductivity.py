@@ -4,12 +4,15 @@ import scipy.special as sp
 import scipy.constants as sc
 import scipy.integrate as it
 import multiprocessing as mp
+from collections import Hashable
 
 from superconductivity.fermi_functions import fermi
 from superconductivity.density_of_pairs import dop_bcs, dop_dynes
 from superconductivity.density_of_states import dos_bcs, dos_dynes
 from superconductivity.gap_functions import delta_bcs, delta_dynes
-from superconductivity.utils import coerce_arrays, BCS, combine_sigma
+from superconductivity.utils import coerce_arrays, BCS, combine_sigma, RotatingDict
+
+_precomputed_values = RotatingDict()
 
 
 def value(temp, freq, tc, gamma=0, d=0, bcs=BCS, low_energy=False, parallel=False):
@@ -47,6 +50,11 @@ def value(temp, freq, tc, gamma=0, d=0, bcs=BCS, low_energy=False, parallel=Fals
     sigma : numpy.ndarray, dtype=numpy.complex128
         The complex conductivity at temp and freq.
     """
+    h = hash((tuple(temp) if not isinstance(temp, Hashable) else temp,
+              tuple(freq) if not isinstance(freq, Hashable) else freq,
+              tc, gamma, d, bcs, low_energy, parallel))
+    if h in _precomputed_values.keys():
+        return _precomputed_values[h]  # check if we've already computed this value and return if true
     if low_energy:
         if gamma != 0:
             raise ValueError("'gamma' can not be used with 'low_energy'")
@@ -55,6 +63,7 @@ def value(temp, freq, tc, gamma=0, d=0, bcs=BCS, low_energy=False, parallel=Fals
         if d != 0:
             raise ValueError("'d' can only be used with 'low_energy'")
         sigma = numeric(temp, freq, tc, gamma=gamma, bcs=bcs, parallel=parallel)
+    _precomputed_values[h] = sigma  # save result in case we want to use it again
     return sigma
 
 
