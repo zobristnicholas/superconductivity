@@ -4,7 +4,6 @@ import scipy.special as sp
 import scipy.constants as sc
 import scipy.integrate as it
 import multiprocessing as mp
-from collections import Hashable
 
 from superconductivity.fermi_functions import fermi
 from superconductivity.density_of_pairs import dop_bcs, dop_dynes
@@ -50,8 +49,17 @@ def value(temp, freq, tc, gamma=0, d=0, bcs=BCS, low_energy=False, parallel=Fals
     sigma : numpy.ndarray, dtype=numpy.complex128
         The complex conductivity at temp and freq.
     """
-    h = hash((tuple(temp) if not isinstance(temp, Hashable) else temp,
-              tuple(freq) if not isinstance(freq, Hashable) else freq,
+    try:
+        hash(temp)
+        hashable_t = True
+    except TypeError:
+        hashable_t = False
+    try:
+        hash(freq)
+        hashable_f = True
+    except TypeError:
+        hashable_f = False
+    h = hash((tuple(temp) if not hashable_t else temp, tuple(freq) if not hashable_f else freq,
               tc, gamma, d, bcs, low_energy, parallel))
     if h in _precomputed_values.keys():
         return _precomputed_values[h]  # check if we've already computed this value and return if true
