@@ -1,5 +1,4 @@
-import pkg_resources
-__version__ = pkg_resources.require("superconductivity")[0].version
+__version__ = "0.0"
 
 import superconductivity.complex_conductivity
 import superconductivity.density_of_states
