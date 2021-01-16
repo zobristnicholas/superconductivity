@@ -25,7 +25,7 @@ def get_version(path):
 # https://github.com/numpy/numpy/blob/v1.19.2/numpy/distutils/command/build.py
 platform = ".{}-{}.{}".format(get_platform(), *sys.version_info[:2])
 extension = Extension(name="superconductivity.multilayer.pde",
-                      sources=["src/superconductivity/multilayer/pde.f90"],
+                      sources=["src/superconductivity/multilayer/bvp.f90"],
                       libraries=["bvp_m-2", "bvp_la-2"],
                       include_dirs=["build/temp" + platform])
 

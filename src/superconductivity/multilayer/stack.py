@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.constants import k, hbar
 
-from superconductivity.multilayer.pde import solve_diffusion_equation
+from superconductivity.multilayer.bvp import solve_diffusion_equation
 from superconductivity.multilayer.superconductor import Superconductor
 
 
@@ -123,11 +123,12 @@ class Stack:
         # Normalize all of the parameters and get them ready to go into the
         # Fortran PDE solving routine.
         energy = energy / self.scale
-        order = np.array([m.order for m in self.layers])
+        order = np.array([m.order for m in self.layers]) / self.scale
         d = np.array([m.d for m in self.layers])
-        x_scale = np.array([(2 * self.scale * m.d**2 / (hbar * m.dc))
-                            for m in self.layers])
-        return solve_diffusion_equation(energy, self.z, order, d, x_scale)
+        rho = np.array([m.rho for m in self.layers])
+        z_scale = np.sqrt(np.array([(2 * self.scale * m.d**2 / (hbar * m.dc))
+                                    for m in self.layers]))
+        return solve_diffusion_equation(energy, self.z, order, d, rho, z_scale)
 
     def _update_scale(self):
         tcs = [m.tc for m in self.layers if isinstance(l, Superconductor)]
