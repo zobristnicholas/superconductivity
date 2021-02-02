@@ -257,17 +257,22 @@
                                                      ! iteration.
 
     DOUBLE PRECISION :: SQRTU ! Square root of unit roundoff.
+    !$OMP THREADPRIVATE(SQRTU)
 
     DOUBLE PRECISION, DIMENSION(:,:), POINTER :: MSING,FSING,BCSING
+    !$OMP THREADPRIVATE(MSING,FSING,BCSING)
     LOGICAL :: SINGULAR  ! Indicate whether solving a singular BVP.
+    !$OMP THREADPRIVATE(SINGULAR)
 
 
     ! Declaration of constants, variables and arrays associated with discrete
     ! and continuous Runge-Kutta formulas.
 
     INTEGER, PARAMETER :: MXS=10 ! Maximum number of stages of Runge-Kutta method.
+    !!$OMP THREADPRIVATE(MXS)
 
     INTEGER :: C_S, C_S_STAR, C_P
+    !$OMP THREADPRIVATE(C_S, C_S_STAR, C_P)
     ! C_S, number of discrete stages; C_S_STAR, total number of stages required to
     ! form the interpolant on each subinterval. It includes all the stages of the
     ! discrete formula plus the additional stages required for the interpolant;
@@ -275,14 +280,18 @@
     ! is the subinterval size.
 
     DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE :: C_C, C_V, C_B
+    !$OMP THREADPRIVATE(C_C, C_V, C_B)
     DOUBLE PRECISION, DIMENSION(:,:), ALLOCATABLE :: C_X
+    !$OMP THREADPRIVATE(C_X)
     ! C_C, C_V, C_B, and C_X are coefficients that define the discrete Runge-Kutta
     ! formula.  C_C, C_V, and C_B correspond, respectively, to the Runge-Kutta
     ! coefficient vectors c, v, and b; C_X corresponds to the Runge-Kutta coefficient
     ! matrix X.
 
     DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE :: C_C_STAR, C_V_STAR
+    !$OMP THREADPRIVATE(C_C_STAR, C_V_STAR)
     DOUBLE PRECISION, DIMENSION(:,:), ALLOCATABLE :: C_X_STAR
+    !$OMP THREADPRIVATE(C_X_STAR)
     ! C_C_STAR, C_V_STAR, and C_X_STAR are coefficients that define the continuous
     ! Runge-Kutta formula.  C_C_STAR and C_V_STAR correspond, respectively, to the
     ! Runge-Kutta coefficient vectors c^star and v^star; C_X_STAR corresponds to
@@ -291,6 +300,7 @@
     DOUBLE PRECISION :: C_TAU_STAR ! Relative position of one of the sample points
                                    ! within each subinterval. The other sample
                                    ! point is 1-C_TAU_STAR.
+    !$OMP THREADPRIVATE(C_TAU_STAR)
 
 
     INTEGER :: MXNSUB ! maximum number of subintervals --  this is used to provide
@@ -299,74 +309,102 @@
     ! allocation call. (Recommended by Skip Thompson, May 26th, 2005.) The default
     ! value is 3000, but it can be changed with the option MAX_NUM_SUBINTERVALS in
     ! BVP_INIT and BVP_EXTEND.
+    !$OMP THREADPRIVATE(MXNSUB)
 
     INTEGER :: PROFILE ! Global variable to specify level of TRACE.
+    !$OMP THREADPRIVATE(PROFILE)
 
     LOGICAL :: G_STOP_ON_FAIL ! Global variable to allow access to STOP_ON_FAIL
                               ! argument to BVP_SOLVER.
+    !$OMP THREADPRIVATE(G_STOP_ON_FAIL)
 
     DOUBLE PRECISION :: BVP_TOL, NEWTON_TOL ! User tolerance for size of defect of
     ! approximate solution and tolerance for Newton iteration.  BVP_TOL is input TOL
     ! or a default value.
+    !$OMP THREADPRIVATE(BVP_TOL, NEWTON_TOL)
 
     INTEGER :: NPTS,NSUB  ! Number of points and number of subintervals for current
                           ! mesh.
+    !$OMP THREADPRIVATE(NPTS,NSUB)
 
     LOGICAL :: HAVE_DFDY,HAVE_DBCDY ! Record presence of DFDY and DBCDY functions.
+    !$OMP THREADPRIVATE(HAVE_DFDY,HAVE_DBCDY)
 
     INTEGER :: NODE,NPAR,NEQN,NEQNSQ,BVP_METHOD,LEFTBC,RIGHTBC
+    !$OMP THREADPRIVATE(NODE,NPAR,NEQN,NEQNSQ,BVP_METHOD,LEFTBC,RIGHTBC)
     ! NODE, number of ODEs, NPAR, number of unknown parameters; number of equations
     ! is NEQN = NODE+NPAR. NEQNSQ = NEQN**2. BVP_METHOD identifies the Runge-Kutta
     ! method to be used and LEFTBC and RIGHTBC are the number of left and right BCs,
     ! respectively.
 
     DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE :: G_X, G_Y
+    !$OMP THREADPRIVATE(G_X, G_Y)
     DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE :: G_K_DISCRETE
+    !$OMP THREADPRIVATE(G_K_DISCRETE)
     DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE :: G_K_INTERP
+    !$OMP THREADPRIVATE(G_K_INTERP)
     ! Allocatable arrays to be used for storage of the mesh, discrete solution, and
     ! discrete and continuous Runge-Kutta stages, respectively.
 
     ! Memory to store factored Newton Matrix
     DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE :: MTOP
+    !$OMP THREADPRIVATE(MTOP)
     DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE :: MBOT
+    !$OMP THREADPRIVATE(MBOT)
     DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE :: MBLOCKS
+    !$OMP THREADPRIVATE(MBLOCKS)
     INTEGER, DIMENSION(:), ALLOCATABLE :: MPIVOT
+    !$OMP THREADPRIVATE(MPIVOT)
 
     ! Memory to store deferred-correction residual
     DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:) :: H_PHI !Holds Residual for
 										    !deferred-corrections approach
+    !$OMP THREADPRIVATE(H_PHI)
     !For Weight Matrices
     DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE :: W12,W3
+    !$OMP THREADPRIVATE(W12,W3)
 
     ! For Conditioning Constant
     DOUBLE PRECISION :: CONCONST
+    !$OMP THREADPRIVATE(CONCONST)
 
     ! Hold Conditioning Global Error estimate ::
     DOUBLE PRECISION :: GECON
+    !$OMP THREADPRIVATE(GECON)
 
     ! Logical operators to indicate what error routine is operating
     LOGICAL :: UHO = .FALSE. ! Higher-order method for error estimation
+    !$OMP THREADPRIVATE(UHO)
     LOGICAL :: UDC = .FALSE. ! Defered-Corrections method for error estimation
+    !$OMP THREADPRIVATE(UDC)
     LOGICAL :: URE = .FALSE. ! Richardson Extrapolation method for error estimation
+    !$OMP THREADPRIVATE(URE)
     LOGICAL :: UCO = .FALSE. ! Find a conditioning constant
+    !$OMP THREADPRIVATE(UCO)
 
     ! Logical Mem control
     LOGICAL :: UPDATENEWT = .FALSE.
+    !$OMP THREADPRIVATE(UPDATENEWT)
 
     ! Mesh Selection Strategy
     INTEGER :: USE_MESH_STRAT
+    !$OMP THREADPRIVATE(USE_MESH_STRAT)
 
     ! Factors for mesh selection
     DOUBLE PRECISION :: MESH_ALPHA, MESH_BETA
+    !$OMP THREADPRIVATE(MESH_ALPHA, MESH_BETA)
 
     ! Newton Iters
     INTEGER :: GBL_ITERATIONS = 0D0
+    !$OMP THREADPRIVATE(GBL_ITERATIONS)
 
     ! DEFECT THRESH
     LOGICAL :: USE_DT = .TRUE.
+    !$OMP THREADPRIVATE(USE_DT)
 
     ! Use GE
     LOGICAL :: UGE = .FALSE.
+    !$OMP THREADPRIVATE(UGE)
 
     CONTAINS
 
