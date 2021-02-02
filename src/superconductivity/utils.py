@@ -4,6 +4,17 @@ from collections import OrderedDict
 BCS = np.pi / np.exp(np.euler_gamma)
 
 
+def cast_to_list(x):
+    if isinstance(x, list):
+        return x
+    elif isinstance(x, str):
+        return [x]
+    try:
+        return list(x)
+    except TypeError:
+        return [x]
+
+
 def coerce_arrays(array1, array2):
     """Make arrays the same shape and size if one array has size 1."""
     array1 = np.atleast_1d(array1)

@@ -4,11 +4,23 @@ from scipy.special import digamma
 
 
 class Metal:
+    Z_GRID = 5  # position grid points
+    E_GRID = 1000  # energy grid points
+
     def __init__(self, d, rho, t, td, dc=None, *, n0=None):
         self.d = d  # thickness
         self.rho = rho  # resistivity
         self.td = td  # Debye temperature
         self.t = t  # temperature
+
+        # Initialize the solution grid placeholders.
+        self.z = np.linspace(0.0, self.d, self.E_GRID)
+        # There is no natural energy scale for a simple metal.
+        self.e = np.linspace(0.0, 1.0, self.E_GRID)
+        self.wn = None
+        self.order = None
+        self.mtheta = None
+        self.theta = None
 
         # The diffusion constant may be specified or derived from the
         # resistivity and the density of states. We save n0 or compute it
@@ -18,18 +30,11 @@ class Metal:
             raise ValueError("Supply only one of the 'n0' and 'dc' keyword "
                              "arguments.")
         if dc is None:
-            self.dc = 1 / (self.rho * n0 * e ** 2)
+            self.dc = 1 / (self.rho * n0 * e**2)
             self.n0 = n0
         else:
             self.dc = dc
-            self.n0 = 1 / (self.rho * self.dc * e ** 2)
-
-        # Initialize the solution grid placeholders.
-        self.z = None
-        self.e = None
-        self.order = None
-        self.mtheta = None
-        self.theta = None
+            self.n0 = 1 / (self.rho * self.dc * e**2)
 
     @property
     def t(self):
@@ -47,19 +52,21 @@ class Metal:
         Initialize calculation parameters to their bulk values at the
         grid locations.
         """
-        # Initialize the Matsubara energies.
-        self.mtheta = np.zeros((self.nc + 1, self.z.size))
+        # Initialize the Matsubara energies and pair angles.
+        self.wn = (2 * np.arange(0, self.nc + 1) + 1) * np.pi * k * self.t
+        self.mtheta = np.zeros((self.nc + 1, self.Z_GRID))
 
         # Initialize the order parameter.
         self.update_order()
 
         # Initialize the pair angle.
-        self.theta = np.zeros((self.e.size, self.z.size))
+        self.theta = np.zeros((self.E_GRID, self.Z_GRID))
 
     def update_order(self):
         """
         Update the order parameter from the pair angle at the Matsubara
         frequencies.
         """
-        self.order = (2 * np.pi * self.t * np.sum(np.sin(self.mtheta), axis=0)
+        self.order = (2 * np.pi * k * self.t
+                      * np.sum(np.sin(self.mtheta), axis=0)
                       / (digamma(self.nc + 1.5) - digamma(0.5)))

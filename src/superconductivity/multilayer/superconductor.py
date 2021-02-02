@@ -22,6 +22,9 @@ class Superconductor(Metal):
 
         self.gap = None
 
+        # Rescale the energy to a more valid range.
+        self.e *= 2 * np.pi * k * self.tc
+
     def initialize_bulk(self):
         """
         Initialize calculation parameters to their bulk values at the
@@ -32,15 +35,15 @@ class Superconductor(Metal):
         self.gap = np.broadcast_to(g, self.z.shape)
 
         # Initialize the Matsubara energies.
-        wn = (2 * np.arange(0, self.nc + 1) + 1) * np.pi * k * self.t
-        wn = wn[:, np.newaxis]
-        self.mtheta = np.arcsin(self.gap / np.sqrt(self.gap**2 + wn**2))
+        self.wn = (2 * np.arange(0, self.nc + 1) + 1) * np.pi * k * self.t
+        self.wn = self.wn[:, np.newaxis]
+        self.mtheta = np.arcsin(self.gap / np.sqrt(self.gap**2 + self.wn**2))
 
         # Initialize the order parameter.
         self.update_order()
 
         # Initialize the pair angle.
-        self.theta = np.empty((self.e.size, self.z.size), dtype=complex)
+        self.theta = np.empty((self.E_GRID, self.Z_GRID), dtype=complex)
         nonzero = (self.e != 0)
         self.theta[nonzero, :] = np.arctan(1j * self.gap
                                            / self.e[nonzero, np.newaxis])
@@ -52,5 +55,6 @@ class Superconductor(Metal):
         frequencies.
         """
         tr = self.t / self.tc
-        self.order = (2 * np.pi * self.t * np.sum(np.sin(self.mtheta), axis=0)
+        self.order = (2 * np.pi * k * self.t
+                      * np.sum(np.sin(self.mtheta), axis=0)
                       / (np.log(tr) + digamma(self.nc + 1.5) - digamma(0.5)))
