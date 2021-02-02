@@ -21,12 +21,12 @@ def get_version(path):
 # temporary directory that gets created during the build. The directory's
 # name is platform dependent, so our workaround is to use the same code to
 # generate the name as in numpy's distutils. This will break if numpy ever
-# changes their specification. It works as of 1.19.2:
+# changes their specification. It works as of 1.19.2 (line 34 of build.py):
 # https://github.com/numpy/numpy/blob/v1.19.2/numpy/distutils/command/build.py
 platform = ".{}-{}.{}".format(get_platform(), *sys.version_info[:2])
 extension = Extension(name="superconductivity.multilayer.pde",
                       sources=["src/superconductivity/multilayer/bvp.f90"],
-                      libraries=["bvp_m-2", "bvp_la-2"],
+                      libraries=["bvp_m-2", "bvp_la-2", "pchip"],
                       include_dirs=["build/temp" + platform])
 
 setup(name='superconductivity',
@@ -50,5 +50,7 @@ setup(name='superconductivity',
       libraries=[('bvp_m-2', dict(sources=['external/bvp_m-2.f90'],
                                   extra_compile_args=["-std=f95"])),
                  ('bvp_la-2', dict(sources=['external/bvp_la-2.f'],
-                                   extra_compile_args=["-std=legacy"]))],
+                                   extra_compile_args=["-std=legacy"])),
+                 ('pchip', dict(sources=['external/pchip.f90'],
+                                extra_compile_args=["-std=legacy"]))],
       ext_modules=[extension])
