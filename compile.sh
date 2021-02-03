@@ -7,4 +7,9 @@ gfortran -c bvp_m-2.f90 -std=f95 -fopenmp
 gfortran -c pchip.f90 -std=legacy
 cd ../src/superconductivity/multilayer || exit
 rm ./*.so
-python -m numpy.f2py --f90flags=-fopenmp -c -I../../../external/ ../../../external/pchip.o ../../../external/bvp_la-2.o ../../../external/bvp_m-2.o -m bvp bvp.f90
+python -m numpy.f2py --f90flags=-fopenmp -c \
+  -I../../../external/ \
+  ../../../external/pchip.o \
+  ../../../external/bvp_la-2.o \
+  ../../../external/bvp_m-2.o \
+  -m usadel usadel.f90

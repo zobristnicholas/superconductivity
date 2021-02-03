@@ -3,20 +3,20 @@ import multiprocessing as mp
 from scipy.constants import e, k, hbar
 
 from superconductivity.utils import cast_to_list
-from superconductivity.multilayer.bvp import solve_diffusion_equation
+from superconductivity.multilayer.usadel import solve
 from superconductivity.multilayer.superconductor import Superconductor, Metal
 
 
 class Stack:
     """
-    A collection of materials and boundary resistances which create the
-    superconducting multilayer.
+    A collection of materials and boundary resistances which create a
+    one dimensional superconducting stack.
     """
     RTOL = 1e-8  # relative convergence tolerance
     MAX_ITERATIONS = 100  # maximum number of iterations to converge
     SPEEDUP = 10  # every <SPEEDUP> iteration is a Steffensen iteration
     THRESHOLD = 1e-3  # DOS threshold for determining the gap energy
-    PARALLEL = True  # Use <PARALLEL> cores. True uses the maximum available.
+    THREADS = True  # Use <THREADS> threads. True uses the maximum available.
 
     def __init__(self, layers, boundaries):
         layers = cast_to_list(layers)
@@ -137,9 +137,10 @@ class Stack:
                                             for m in self.layers])
 
                 # Solve the diffusion equation at the Matsubara energies.
-                theta = solve_diffusion_equation(
+                theta = solve(
                     wn / self.scale, self.z, y_guess, self.order / self.scale,
-                    self.boundaries, self.interfaces, self.RTOL, **self.kwargs)
+                    self.boundaries, self.interfaces, self.RTOL,
+                    self._get_threads(),  **self.kwargs)
 
                 # Collect the results into the different layer objects.
                 for ii in range(nmax + 1):
@@ -212,7 +213,7 @@ class Stack:
             else:
                 z[start:stop] = 1 - (self.z[start:stop] - np.sum(d[:i])) / d[i]
         # Round to avoid floating point errors.
-        _, indices = np.unique(z.round(decimals=15), return_index=True)
+        _, indices = np.unique(z.round(decimals=10), return_index=True)
         z_guess = z[indices]
         self.kwargs = {"d": d,
                        "rho": np.array([m.rho for m in self.layers]),
@@ -220,3 +221,11 @@ class Stack:
                                                     / (hbar * m.dc))
                                                     for m in self.layers])),
                        "z_guess": z_guess}
+
+    def _get_threads(self):
+        if self.THREADS is True:
+            return mp.cpu_count()
+        elif self.THREADS is False:
+            return 1
+        else:
+            return self.THREADS

@@ -1,12 +1,12 @@
-subroutine solve_diffusion_equation(energies, z, theta_old, order, boundaries, &
-                                    interfaces, tol, d, rho, z_scale, &
-                                    z_guess, n_layers, n_points, n_guess, &
-                                    n_energy, n_min, theta)
+subroutine solve(energies, z, theta_old, order, boundaries, interfaces, tol, &
+                 n_threads, d, rho, z_scale, z_guess, n_layers, n_points, &
+                 n_guess, n_energy, n_min, theta)
+    use omp_lib
     use bvp_m
     implicit none
     integer, parameter :: dp=kind(1d0)
     integer, intent(in) :: n_layers, n_points, n_guess, n_energy, n_min
-    integer, intent(in) :: interfaces(n_layers + 1)
+    integer, intent(in) :: interfaces(n_layers + 1), n_threads
     real(kind=dp), intent(in) :: boundaries(n_layers - 1), order(n_points)
     real(kind=dp), intent(in) :: energies(n_energy), z(n_points),  tol
     real(kind=dp), intent(in) :: d(n_layers), rho(n_layers), z_scale(n_layers)
@@ -21,6 +21,9 @@ subroutine solve_diffusion_equation(energies, z, theta_old, order, boundaries, &
     real(kind=dp), save :: energy
     !$omp threadprivate(energy)
 
+    ! Set the maximum number of threads to use for the calculation.
+    call omp_set_num_threads(n_threads)
+
     ! There are two times as many equations as there are layers.
     n_eqns = 2 * n_layers
 
@@ -32,6 +35,7 @@ subroutine solve_diffusion_equation(energies, z, theta_old, order, boundaries, &
                     dorder(start:stop), .false., 0, 0, err)
     end do
 
+    ! Loop over the energies at which we want to solve the BVP.
     !$omp parallel do private(y_guess, sol, start, stop, zp, y)
     do i = 1, n_energy
         energy = energies(i)  ! threadprivate global variable
@@ -182,4 +186,4 @@ subroutine solve_diffusion_equation(energies, z, theta_old, order, boundaries, &
                 end if
             end do
         end subroutine bc
-end subroutine solve_diffusion_equation
+end subroutine solve
