@@ -4,6 +4,15 @@ from collections import OrderedDict
 BCS = np.pi / np.exp(np.euler_gamma)
 
 
+def setup_plot(axes=None):
+    if axes is None:
+        from matplotlib import pyplot as plt
+        figure, axes = plt.subplots()
+    else:
+        figure = axes.figure
+    return figure, axes
+
+
 def cast_to_list(x):
     if isinstance(x, list):
         return x
