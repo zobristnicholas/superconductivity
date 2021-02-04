@@ -85,10 +85,21 @@ class Stack:
         self._update_grid()
         self._update_args()
 
+    def update(self):
+        """
+        Run all of the update routines to make the all of the class
+        attributes consistent with the geometry. Note: this will likely
+        compute more than you need, so if computation time is important,
+        run only the routines required.
+        """
+        self.update_order()
+        self.update_theta()
+
     def update_order(self):
         """
         Update the order parameter for the entire stack by solving the
-        Usadel diffusion equation and self-consistency equation.
+        Usadel diffusion equation and self-consistency equation at the
+        Matsubara energies.
         """
         log.info("Computing the order parameter for a stack.")
         # Initialize all of the parameters to their bulk values
@@ -167,6 +178,11 @@ class Stack:
             log.debug("Iteration: {:d} :: R: {:g}".format(i, r))
 
     def update_theta(self):
+        """
+        Update the pair angle for the entire stack based on the stack's
+        order parameter by solving the Usadel equation. Run
+        update_order() first if the order parameter is not up to date.
+        """
         log.info("Computing the pair angle for a stack.")
         # Initialize the guess.
         y_guess = np.zeros((2 * len(self.layers), self.e.size), dtype=complex)
