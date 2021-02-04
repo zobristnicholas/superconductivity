@@ -1,10 +1,14 @@
+import logging
 import numpy as np
 import multiprocessing as mp
 from scipy.constants import e, k, hbar
 
-from superconductivity.utils import cast_to_list
-from superconductivity.multilayer.usadel import solve
+from superconductivity.utils import cast_to_list, setup_plot
+from superconductivity.multilayer.usadel import solve_imaginary, solve_real
 from superconductivity.multilayer.superconductor import Superconductor, Metal
+
+log = logging.getLogger(__name__)
+log.addHandler(logging.NullHandler())
 
 
 class Stack:
@@ -86,6 +90,7 @@ class Stack:
         Update the order parameter for the entire stack by solving the
         Usadel diffusion equation and self-consistency equation.
         """
+        log.info("Computing the order parameter for a stack.")
         # Initialize all of the parameters to their bulk values
         temperatures = []
         for layer in self.layers:
@@ -93,7 +98,7 @@ class Stack:
 
         # Enforce a constant temperature
         if not all([temperatures[0] == t for t in temperatures]):
-            raise ValueError("All materials must have the same temperature")
+            raise ValueError("All materials must have the same temperature.")
 
         # Determine the maximum and minimum Matsubara number
         nc = [m.nc for m in self.layers]
@@ -137,7 +142,7 @@ class Stack:
                                             for m in self.layers])
 
                 # Solve the diffusion equation at the Matsubara energies.
-                theta = solve(
+                theta = solve_imaginary(
                     wn / self.scale, self.z, y_guess, self.order / self.scale,
                     self.boundaries, self.interfaces, self.RTOL,
                     self._get_threads(),  **self.kwargs)
@@ -159,15 +164,46 @@ class Stack:
             order2 = order1
             order1 = self.order / self.scale
             r = np.max(np.abs(order1 - order2) / (np.abs(order1) + 1))
-            print("Iteration: {}".format(i), "R: {:g}".format(r))
+            log.debug("Iteration: {:d} :: R: {:g}".format(i, r))
+
+    def update_theta(self):
+        log.info("Computing the pair angle for a stack.")
+        # Initialize the guess.
+        y_guess = np.zeros((2 * len(self.layers), self.e.size), dtype=complex)
+        y_guess[::2, :] = np.pi / 4 + 1j * np.pi / 4
+
+        # Solve the diffusion equation at the requested energies.
+        theta = solve_real(
+            self.e / self.scale, self.z, y_guess, self.order / self.scale,
+            self.boundaries, self.interfaces, self.RTOL,
+            self._get_threads(), **self.kwargs)
+
+        # Collect the results into the different layer objects.
+        for i in range(self.e.size):
+            for ii, layer in enumerate(self.layers):
+                start = self.interfaces[ii]
+                stop = self.interfaces[ii + 1]
+                layer.theta[i, :] = theta[i, start:stop]
 
     def plot_order(self, axes=None):
-        if axes is None:
-            from matplotlib import pyplot as plt
-            _, axes = plt.subplots()
+        _, axes = setup_plot(axes=axes)
         axes.plot(self.z * 1e9, self.order / e * 1e3)
         axes.set_ylabel("order parameter [meV]")
         axes.set_xlabel("position [nm]")
+
+    def plot_dos(self, axes=None):
+        _, axes = setup_plot(axes=axes)
+        energy = self.e / e * 1e3
+        for i, layer in enumerate(self.layers):
+            axes.plot(energy, np.real(np.cos(layer.theta[:, 0])),
+                      label="layer {}: lower".format(i + 1),
+                      color="C{}".format(i), linestyle='-')
+            axes.plot(energy, np.real(np.cos(layer.theta[:, -1])),
+                      label="layer {}: upper".format(i + 1),
+                      color="C{}".format(i), linestyle='--')
+        axes.set_ylabel("normalized density of states")
+        axes.set_xlabel("energy [meV]")
+        axes.legend()
 
     def _update_scale(self):
         tcs = [m.tc for m in self.layers if isinstance(m, Superconductor)]
