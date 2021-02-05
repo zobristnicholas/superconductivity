@@ -1,11 +1,13 @@
+import copy
 import logging
 import numpy as np
 import multiprocessing as mp
 from scipy.constants import e, k, hbar
+from scipy.interpolate import PchipInterpolator
 
 from superconductivity.utils import cast_to_list, setup_plot
+from superconductivity.multilayer.superconductor import Superconductor
 from superconductivity.multilayer.usadel import solve_imaginary, solve_real
-from superconductivity.multilayer.superconductor import Superconductor, Metal
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
@@ -34,15 +36,10 @@ class Stack:
     def __init__(self, layers, boundaries):
         layers = cast_to_list(layers)
         boundaries = cast_to_list(boundaries)
-        # TODO: Right now boundaries is referenced to the maximum Tc of the
-        #  stack. This makes adding layers problematic. The interface needs
-        #  to be cleaned up to avoid confusion. Maybe switch to new gamma
-        #  definition = Rb / (rho * d) instead of = Rb / (rho * xi_star),
-        #  or just use Rb.
         if len(boundaries) != len(layers) - 1:
             raise ValueError("There must be a boundary term for each layer "
                              "interface (one less than the number of layers).")
-        self.layers = layers  # from bottom to top
+        self.layers = [copy.deepcopy(m) for m in layers]  # from bottom to top
         self.boundaries = boundaries
 
         # Update the energy scale with which to normalize the calculations.
@@ -145,7 +142,7 @@ class Stack:
             i += 1
 
             # Perform a Steffensen's iteration to boost convergence speed.
-            if (i % self.SPEEDUP == 0) and self.SPEEDUP:
+            if self.SPEEDUP and (i % self.SPEEDUP == 0):
                 order = order3 - (order2 - order3)**2 / (order1 - 2 * order2
                                                          + order3)
 
@@ -186,6 +183,8 @@ class Stack:
             r = np.max(np.abs(order1 - order2) / (np.abs(order1) + 1))
             log.debug("Iteration: {:d} :: R: {:g}".format(i, r))
 
+        log.info("Order parameter computed.")
+
     def update_theta(self):
         """
         Update the pair angle for the entire stack based on the stack's
@@ -210,25 +209,77 @@ class Stack:
                 stop = self.interfaces[ii + 1]
                 layer.theta[i, :] = theta[i, start:stop]
 
+        log.info("Pair angle computed.")
+
+    def plot(self, axes_list=None, **kwargs):
+        if axes_list is None:
+            from matplotlib import pyplot as plt
+            figure, axes_list = plt.subplots(nrows=2, figsize=[6.4, 4.8 * 2])
+        else:
+            figure = axes_list[0].figure
+        self.plot_order(axes=axes_list[0])
+        self.plot_dos(axes=axes_list[1], **kwargs)
+        figure.tight_layout()
+
     def plot_order(self, axes=None):
         _, axes = setup_plot(axes=axes)
-        axes.plot(self.z * 1e9, self.order / e * 1e3)
+        for i, layer in enumerate(self.layers):
+            start = self.interfaces[i]
+            stop = self.interfaces[i + 1]
+            interp = PchipInterpolator(self.z[start:stop],
+                                       self.order[start:stop])
+            z = np.linspace(self.z[start], self.z[stop - 1],
+                            100 * (stop - start))
+            axes.plot(z * 1e9, interp(z) / e * 1e3,
+                      label="layer {}".format(i + 1), color="C{}".format(i),
+                      linestyle='-')
+            if isinstance(layer, Superconductor):
+                axes.plot(z * 1e9, np.full(z.shape, layer.delta0 / e * 1e3),
+                          label="bulk {}".format(i + 1), color="C{}".format(i),
+                          linestyle='--')
+            else:
+                axes.plot(z * 1e9, np.zeros(z.shape),
+                          label="bulk {}".format(i + 1), color="C{}".format(i),
+                          linestyle='--')
+        axes.plot(self.z * 1e9, self.order / e * 1e3, linestyle='none',
+                  marker='o', markersize=3, color='k')
         axes.set_ylabel("order parameter [meV]")
         axes.set_xlabel("position [nm]")
+        axes.legend(frameon=False)
 
-    def plot_dos(self, axes=None):
+    def plot_dos(self, axes=None, location='edges'):
         _, axes = setup_plot(axes=axes)
         energy = self.e / e * 1e3
         for i, layer in enumerate(self.layers):
-            axes.plot(energy, np.real(np.cos(layer.theta[:, 0])),
-                      label="layer {}: lower".format(i + 1),
-                      color="C{}".format(i), linestyle='-')
-            axes.plot(energy, np.real(np.cos(layer.theta[:, -1])),
-                      label="layer {}: upper".format(i + 1),
-                      color="C{}".format(i), linestyle='--')
+            if location.lower() == 'edges':
+                axes.plot(energy, np.real(np.cos(layer.theta[:, 0])),
+                          label="layer {}: lower".format(i + 1),
+                          color="C{}".format(i), linestyle='-')
+                axes.plot(energy, np.real(np.cos(layer.theta[:, -1])),
+                          label="layer {}: upper".format(i + 1),
+                          color="C{}".format(i), linestyle='--')
+            elif location.lower() in ['centers', 'mixed']:
+                if location.lower() == "mixed" and i == 0:
+                    theta = layer.theta[:, 0]
+                    label = "layer {}: bottom".format(i + 1)
+                elif location.lower() == "mixed" and i == len(self.layers) - 1:
+                    theta = layer.theta[:, -1]
+                    label = "layer {}: top".format(i + 1)
+                else:
+                    # Numpy not catching stray warning as of version 1.19.2
+                    with np.errstate(invalid='ignore'):
+                        interp = PchipInterpolator(layer.z, layer.theta,
+                                                   axis=1)
+                    theta = interp(layer.z.mean())
+                    label = "layer {}: center".format(i + 1)
+                axes.plot(energy, np.real(np.cos(theta)),
+                          label=label, color="C{}".format(i), linestyle='-')
+            else:
+                raise ValueError("'{}' is not a valid location."
+                                 .format(location))
         axes.set_ylabel("normalized density of states")
         axes.set_xlabel("energy [meV]")
-        axes.legend()
+        axes.legend(frameon=False)
 
     def _update_scale(self):
         tcs = [m.tc for m in self.layers if isinstance(m, Superconductor)]
@@ -238,8 +289,8 @@ class Stack:
         # Set the z grid.
         start, stop = [], []
         for layer in self.layers:
-            start.append(sum(stop))
-            stop.append(layer.d + sum(stop))
+            start.append(sum(stop[-1:]))
+            stop.append(layer.d + sum(stop[-1:]))
             layer.z = np.linspace(start[-1], stop[-1], layer.Z_GRID)
         self.z = np.concatenate([m.z for m in self.layers])
 
@@ -253,10 +304,10 @@ class Stack:
                                  "correct number of layers.")
 
         # Set the energy grid.
-        if any([m.E_GRID != Metal.E_GRID for m in self.layers]):
+        if any([m.E_GRID != self.layers[0].E_GRID for m in self.layers]):
             raise AttributeError("All layers must have the same E_GRID "
                                  "constant.")
-        energies = np.linspace(0, 2 * self.scale, Metal.E_GRID)
+        energies = np.linspace(0, 2 * self.scale, self.layers[0].E_GRID)
         self.e = energies
         for layer in self.layers:
             layer.e = self.e
