@@ -1,4 +1,4 @@
-# This file simulates the Al/Ti bilayer discussed in Zhao et al. 2018
+# This file simulates the Al/Ti/Al trilayer discussed in Zhao et al. 2018
 # (doi:10.1088/1361-6668/aa94b7).
 import logging
 import numpy as np
@@ -10,8 +10,8 @@ logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 # Ti parameters
-# thickness [m] 
-d_ti = [25e-9, 45e-9, 80e-9, 105e-9, 130e-9]
+# thickness [m]
+d_ti = [25e-9, 50e-9, 100e-9, 150e-9, 200e-9]
 # transition temperature [K]
 tc_ti = 0.4
 # Debye temperature [K]
@@ -40,14 +40,23 @@ rb = 0.01 * rho_al * xi_al  # dimensionless boundary resistance
 t = 0.1  # temperature [K]
 
 # Simulation
-# Define the superconductors and put them into a bilayer.
+# Define the superconductors
 al = Superconductor(d_al, rho_al, t, td_al, tc_al, dc_al)
 ti = Superconductor(d_ti[-1], rho_ti, t, td_ti, tc_ti, dc_ti)
-stack = Stack([al, ti], rb)
+
+# Set some simulation parameters to match those used in the paper
+Stack.RTOL = 1e-3
+Stack.SPEEDUP = 0
+Superconductor.Z_GRID = 10
+al.nc = 125
+ti.nc = 125
+
+# Add the superconductors to the trilayer
+stack = Stack([al, ti, al], [rb, rb])
 
 # Do the simulation
 stack.update()
-
-# Plot the density of states
-stack.plot_dos()
+# stack.update_order()
+# Plot
+stack.plot(location='mixed')
 plt.show(block=True)
