@@ -119,8 +119,7 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
 
             do ii = 1, n_layers
                 dydz(2 * ii - 1) = y(2 * ii)
-                dydz(2 * ii) = (z_scale(ii))**2 &
-                        * (energy * sin(y(2 * ii - 1)) &
+                dydz(2 * ii) = z_scale(ii) * (energy * sin(y(2 * ii - 1)) &
                                 - delta(z, ii) * cos(y(2 * ii - 1)))
             end do
         end subroutine f
@@ -135,7 +134,7 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
             dfdy(:, :) = 0.0_dp
             do ii = 1, n_layers
                 dfdy(2 * ii - 1, 2 * ii) = 1.0_dp
-                dfdy(2 * ii, 2 * ii - 1) = (z_scale(ii))**2 &
+                dfdy(2 * ii, 2 * ii - 1) = z_scale(ii) &
                         * (energy * cos(y(2 * ii - 1)) &
                                 + delta(z, ii) * sin(y(2 * ii - 1)))
             end do
@@ -314,7 +313,7 @@ subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
 
             do ii = 1, n_layers
                 yc = y(2 * ii - 1) + j * y(n_eqns + 2 * ii - 1)
-                dydzc = -(z_scale(ii))**2 &
+                dydzc = -z_scale(ii) &
                         * (j * energy * sin(yc) + delta(z, ii) * cos(yc))
                 ! real part
                 dydz(2 * ii - 1) = y(2 * ii)
@@ -336,7 +335,7 @@ subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
             dfdy(:, :) = 0.0_dp
             do ii = 1, n_layers
                 yc = y(2 * ii - 1) + j * y(n_eqns + 2 * ii - 1)
-                dfdyc = (z_scale(ii))**2 &
+                dfdyc = z_scale(ii) &
                         * (-j * energy * cos(yc) + delta(z, ii) * sin(yc))
                 ! real part
                 dfdy(2 * ii - 1, 2 * ii) = 1.0_dp

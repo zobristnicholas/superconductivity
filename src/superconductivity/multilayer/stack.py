@@ -329,9 +329,9 @@ class Stack:
         z_guess = z[indices]
         self.kwargs = {"d": d,
                        "rho": np.array([m.rho for m in self.layers]),
-                       "z_scale": np.sqrt(np.array([(2 * self.scale * m.d**2
-                                                    / (hbar * m.dc))
-                                                    for m in self.layers])),
+                       "z_scale": np.array([(2 * self.scale * m.d**2
+                                             / (hbar * m.dc))
+                                            for m in self.layers]),
                        "z_guess": z_guess}
 
     def _get_threads(self):
