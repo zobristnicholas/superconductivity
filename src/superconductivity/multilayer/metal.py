@@ -4,6 +4,28 @@ from scipy.special import digamma
 
 
 class Metal:
+    """
+    A class holding the material properties of a metal.
+
+    Args:
+        d: float
+            The thickness of the material [m].
+        rho: float
+            The normal state resistivity of the material [Ohm m].
+        t: float
+            The temperature of the material in [K].
+        td: float
+            The Debye temperature of the material [K].
+        dc: float (optional)
+            The diffusion constant of the material [m^2 / s]. If
+            not provided, 'n0' must be provided.
+        n0: float (optional)
+            The single spin density of states [1 / (J m^3)]. If provided
+            it is used to calculate 'dc' from the formula:
+            1 / (rho * n0 * e**2). One and only one of dc and n0 should
+            be provided.
+            doi:10.1016/S0168-9002(99)01320-0
+    """
     Z_GRID = 5  # position grid points
     E_GRID = 1000  # energy grid points
 

@@ -15,6 +15,15 @@ class Stack:
     """
     A collection of materials and boundary resistances which create a
     one dimensional superconducting stack.
+
+    Args:
+        layers: iterable of Superconductor or Metal objects
+            The different layers of the stack from bottom to top. The
+            layers are copied and the originals will not be modified.
+        boundaries: iterable of floats
+            The boundary resistances in units of Ohm m^2 at each
+            interface between layers. There should be one less than the
+            number of layers.
     """
     RTOL = 1e-8  # relative convergence tolerance
     MAX_ITERATIONS = 100  # maximum number of iterations to converge
