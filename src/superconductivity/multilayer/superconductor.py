@@ -34,9 +34,15 @@ class Superconductor(Metal):
             doi:10.1016/S0168-9002(99)01320-0
     """
     def __init__(self, d, rho, t, td, tc, dc=None, *, n0=None):
-        super().__init__(d, rho, t, dc=dc, n0=n0)
-        self.tc = tc  # transition temperature
+        # Set the debye temperature before initializing the base class since
+        # the base class sets t. t has been overloaded with a property that
+        # requires td.
         self.td = td  # Debye temperature
+
+        # Initialize the base class.
+        super().__init__(d, rho, t, dc=dc, n0=n0)
+
+        self.tc = tc  # transition temperature
 
         # The zero temperature gap energy is derived from the transition
         # temperature assuming a BCS superconductor.
