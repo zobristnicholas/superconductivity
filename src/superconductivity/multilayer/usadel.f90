@@ -1,7 +1,7 @@
 subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
                            interfaces, tol, n_threads, d, rho, z_scale, &
                            z_guess, n_layers, n_points, n_guess, n_energy, &
-                           n_min, theta)
+                           n_min, theta, info)
     use omp_lib
     use bvp_m
     implicit none
@@ -14,6 +14,7 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
     real(kind=dp), intent(in) :: z_guess(n_guess)
     real(kind=dp), intent(in) :: theta_old(2 * n_layers, n_min)
     real(kind=dp), intent(out) :: theta(n_energy, n_points)
+    integer, intent(out) :: info
 
     real(kind=dp) :: zp(size(z)), dorder(size(z)), y(2 * n_layers, size(z))
     real(kind=dp) :: y_guess(2 * n_layers)
@@ -21,6 +22,9 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
     type(bvp_sol) :: sol
     real(kind=dp), save :: energy
     !$omp threadprivate(energy)
+
+    ! Set the computation info to 0. Any other value indicates an error.
+    info = 0
 
     ! Set the maximum number of threads to use for the calculation.
     call omp_set_num_threads(n_threads)
@@ -46,7 +50,12 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
 
         ! Solve the diffusion equation.
         sol = bvp_init(n_eqns, n_layers, z_guess, y_guess)
-        sol = bvp_solver(sol, f, bc, dfdy=jac, tol=tol, trace=0)
+        sol = bvp_solver(sol, f, bc, dfdy=jac, tol=tol, trace=0, &
+                         stop_on_fail=.false.)
+        if (sol%info /= 0) then
+            info = sol%info
+            exit
+        end if
 
         ! Return the solution
         do ii = 1, n_layers
@@ -191,7 +200,7 @@ end subroutine solve_imaginary
 
 subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
                       tol, n_threads, d, rho, z_scale, z_guess, n_layers, &
-                      n_points, n_guess, n_energy, n_min, theta)
+                      n_points, n_guess, n_energy, n_min, theta, info)
     use omp_lib
     use bvp_m
     implicit none
@@ -204,6 +213,7 @@ subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
     real(kind=dp), intent(in) :: z_guess(n_guess)
     complex(kind=dp), intent(in) :: theta_old(2 * n_layers, n_min)
     complex(kind=dp), intent(out) :: theta(n_energy, n_points)
+    integer, intent(out) :: info
 
     real(kind=dp) :: zp(size(z)), dorder(size(z)), y(4 * n_layers, size(z))
     real(kind=dp) :: y_guess(4 * n_layers)
@@ -212,6 +222,9 @@ subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
     real(kind=dp), save :: energy
     complex(kind=dp), parameter :: j = (0, 1)
     !$omp threadprivate(energy)
+
+    ! Set the computation info to 0. Any other value indicates an error.
+    info = 0
 
     ! Set the maximum number of threads to use for the calculation.
     call omp_set_num_threads(n_threads)
@@ -238,7 +251,13 @@ subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
 
         ! Solve the diffusion equation.
         sol = bvp_init(2 * n_eqns, 2 * n_layers, z_guess, y_guess)
-        sol = bvp_solver(sol, f, bc, dfdy=jac, tol=tol, trace=0)
+        sol = bvp_solver(sol, f, bc, dfdy=jac, tol=tol, trace=0, &
+                         stop_on_fail=.false.)
+
+        if (sol%info /= 0) then
+            info = sol%info
+            exit
+        end if
 
         ! Return the solution
         do ii = 1, n_layers

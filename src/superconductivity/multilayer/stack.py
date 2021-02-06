@@ -8,7 +8,7 @@ from scipy.interpolate import PchipInterpolator
 from superconductivity.multilayer.superconductor import Superconductor
 from superconductivity.multilayer.usadel import solve_imaginary, solve_real
 from superconductivity.utils import (cast_to_list, setup_plot,
-                                     finalize_plot, get_scale)
+                                     finalize_plot, get_scale, raise_bvp)
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
@@ -160,10 +160,11 @@ class Stack:
                                             for m in self.layers])
 
                 # Solve the diffusion equation at the Matsubara energies.
-                theta = solve_imaginary(
+                theta, info = solve_imaginary(
                     wn / self.scale, self.z, y_guess, self.order / self.scale,
                     self.boundaries, self.interfaces, self.RTOL,
                     self._get_threads(),  **self.kwargs)
+                raise_bvp(info)
 
                 # Collect the results into the different layer objects.
                 for ii in range(nmax + 1):
@@ -198,10 +199,11 @@ class Stack:
         y_guess[::2, :] = np.pi / 4 + 1j * np.pi / 4
 
         # Solve the diffusion equation at the requested energies.
-        theta = solve_real(
+        theta, info = solve_real(
             self.e / self.scale, self.z, y_guess, self.order / self.scale,
             self.boundaries, self.interfaces, self.RTOL,
             self._get_threads(), **self.kwargs)
+        raise_bvp(info)
 
         # Collect the results into the different layer objects.
         for i in range(self.e.size):

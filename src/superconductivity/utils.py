@@ -4,6 +4,28 @@ from collections import OrderedDict
 BCS = np.pi / np.exp(np.euler_gamma)
 
 
+def raise_bvp(info):
+    if info == 0:
+        return  # no error
+    prefix = "BVP_SOLVER error: "
+    if info == -1:
+        raise RuntimeError(prefix + 'Number of subintervals needed for new ' 
+                           'mesh would exceed current allowed maximum.')
+    elif info == 1:
+        raise RuntimeError(prefix + 'The Newton iteration failed because the '
+                           'maximum number of Newton iterations was '
+                           'exceeded.')
+    elif info == 2:
+        raise RuntimeError(prefix + 'The Newton iteration failed because a '
+                           'singular Newton matrix was encountered.')
+    elif info == 3:
+        raise RuntimeError(prefix + 'The Newton iteration has been terminated '
+                           'because it is not converging at a satisfactory '
+                           'rate.')
+    else:
+        raise RuntimeError(prefix + f"Unknown info parameter: '{info}'")
+
+
 def get_scale(energy_scale):
     units1 = ['neV', 'µeV', 'meV', 'eV', 'keV', 'MeV', 'GeV']  # greek
     units2 = ['neV', 'ueV', 'meV', 'eV', 'keV', 'MeV', 'GeV']  # no greek
