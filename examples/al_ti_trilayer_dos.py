@@ -60,7 +60,7 @@ for d in d_ti:
     stack = Stack([al, ti, al], [rb, rb])
 
     # Do the simulation
-    stack.update()
+    stack.update_dos()
 
     # Plot the density of states at the aluminum edge and titanium center
     stack.plot_dos(axes=axes, location=[['bottom'], ['center'], []],

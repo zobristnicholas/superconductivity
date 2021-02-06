@@ -42,6 +42,7 @@ class Stack:
                              "interface (one less than the number of layers).")
         self.layers = [copy.deepcopy(m) for m in layers]  # from bottom to top
         self.boundaries = boundaries
+        self.tc = None  # The stack's Tc is unknown until update_tc() is called
 
         # Update the energy scale with which to normalize the calculations.
         self._update_scale()
@@ -98,6 +99,19 @@ class Stack:
         attributes consistent with the geometry. Note: this will likely
         compute more than you need, so if computation time is important,
         run only the routines required.
+        """
+        self.update_tc()  # approximate the transition temperature
+        self.update_dos()  # computes the density of states
+        self.update_gap()  # compute the gap energy
+
+    def update_tc(self):
+        pass
+
+    def update_dos(self):
+        """
+        Update all of the attributes required to compute the density of
+        states. This may be more work than required if the order
+        parameter is already up to date.
         """
         self.update_order()
         self.update_theta()
@@ -213,6 +227,9 @@ class Stack:
                 layer.theta[i, :] = theta[i, start:stop]
 
         log.info("Pair angle computed.")
+
+    def update_gap(self):
+        pass
 
     def plot(self, axes_list=None, title=False, title_kwargs=None,
              tick_kwargs=None, tighten=False, order_kwargs=None,

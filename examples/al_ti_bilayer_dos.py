@@ -58,7 +58,7 @@ for d in d_ti:
     stack = Stack([al, ti], rb)
 
     # Do the simulation
-    stack.update()
+    stack.update_dos()
 
     # Plot the density of states at the open boundaries
     stack.plot_dos(axes=axes, location=[['bottom'], ['top']],
