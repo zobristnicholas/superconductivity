@@ -29,10 +29,9 @@ class Metal:
     Z_GRID = 5  # position grid points
     E_GRID = 1000  # energy grid points
 
-    def __init__(self, d, rho, t, td, dc=None, *, n0=None):
+    def __init__(self, d, rho, t, dc=None, *, n0=None):
         self.d = d  # thickness
         self.rho = rho  # resistivity
-        self.td = td  # Debye temperature
         self.t = t  # temperature
 
         # Initialize the solution grid placeholders.
@@ -58,17 +57,6 @@ class Metal:
         else:
             self.dc = dc
             self.n0 = 1 / (self.rho * self.dc * e**2)
-
-    @property
-    def t(self):
-        return self._t
-
-    @t.setter
-    def t(self, temperature):
-        self._t = temperature
-        # The Matsubara cutoff integer is derived from the temperature and
-        # the Debye temperature.
-        self.nc = int(np.floor(self.td / (2 * np.pi * self.t) - 0.5))
 
     def initialize_bulk(self):
         """

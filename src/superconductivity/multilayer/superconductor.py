@@ -34,8 +34,9 @@ class Superconductor(Metal):
             doi:10.1016/S0168-9002(99)01320-0
     """
     def __init__(self, d, rho, t, td, tc, dc=None, *, n0=None):
-        super().__init__(d, rho, t, td, dc=dc, n0=n0)
-        self.tc = tc
+        super().__init__(d, rho, t, dc=dc, n0=n0)
+        self.tc = tc  # transition temperature
+        self.td = td  # Debye temperature
 
         # The zero temperature gap energy is derived from the transition
         # temperature assuming a BCS superconductor.
@@ -47,6 +48,17 @@ class Superconductor(Metal):
 
         # Rescale the energy to a more valid range.
         self.e *= 2 * np.pi * k * self.tc
+
+    @property
+    def t(self):
+        return self._t
+
+    @t.setter
+    def t(self, temperature):
+        self._t = temperature
+        # The Matsubara cutoff integer is derived from the temperature and
+        # the Debye temperature.
+        self.nc = int(np.floor(self.td / (2 * np.pi * self._t) - 0.5))
 
     def initialize_bulk(self):
         """
