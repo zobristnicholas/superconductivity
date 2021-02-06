@@ -45,8 +45,6 @@ class Superconductor(Metal):
         # diffusion constant and the zero temperature gap energy.
         self.xi = np.sqrt(BCS * hbar * self.dc / (2 * np.pi * self.delta0))
 
-        self.gap = None
-
         # Rescale the energy to a more valid range.
         self.e *= 2 * np.pi * k * self.tc
 

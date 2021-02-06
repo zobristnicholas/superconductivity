@@ -43,6 +43,7 @@ class Metal:
         self.order = None
         self.mtheta = None
         self.theta = None
+        self.gap = None
 
         # The diffusion constant may be specified or derived from the
         # resistivity and the density of states. We save n0 or compute it
@@ -81,6 +82,9 @@ class Metal:
         # Initialize the order parameter.
         self.update_order()
 
+        # Initialize the gap energy.
+        self.gap = self.order
+
         # Initialize the pair angle.
         self.theta = np.zeros((self.E_GRID, self.Z_GRID))
 
@@ -89,6 +93,9 @@ class Metal:
         Update the order parameter from the pair angle at the Matsubara
         frequencies.
         """
-        self.order = (2 * np.pi * k * self.t
-                      * np.sum(np.sin(self.mtheta), axis=0)
-                      / (digamma(self.nc + 1.5) - digamma(0.5)))
+        # The superconducting interaction potential is  proportional to the
+        # order parameter. In a normal metal, the interaction potential is
+        # zero, so the order parameter is always zero. We don't need to
+        # update it here unless it hasn't been initialized.
+        if self.order is None:
+            self.order = np.zeros(self.Z_GRID)
