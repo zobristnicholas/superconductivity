@@ -4,6 +4,23 @@ from collections import OrderedDict
 BCS = np.pi / np.exp(np.euler_gamma)
 
 
+def get_scale(energy_scale):
+    units1 = ['neV', 'µeV', 'meV', 'eV', 'keV', 'MeV', 'GeV']  # greek
+    units2 = ['neV', 'ueV', 'meV', 'eV', 'keV', 'MeV', 'GeV']  # no greek
+    if energy_scale in units1:
+        units = units1
+    elif energy_scale in units2:
+        units = units2
+    else:
+        raise ValueError(f"'energy_scale' must be in {units2}.")
+    scale = 1
+    for i, unit in enumerate(units):
+        if unit == energy_scale:
+            scale = 10 ** (-3 * (i - 3))
+            break
+    return scale
+
+
 def setup_plot(axes=None):
     if axes is None:
         from matplotlib import pyplot as plt
@@ -11,6 +28,28 @@ def setup_plot(axes=None):
     else:
         figure = axes.figure
     return figure, axes
+
+
+def finalize_plot(axes, title=False, title_kwargs=None, legend=False,
+                  legend_kwargs=None, tick_kwargs=None, tighten=False):
+    # make the legend
+    if legend:
+        kwargs = {}  # default settings
+        if legend_kwargs is not None:
+            kwargs.update(legend_kwargs)
+        axes.legend(**kwargs)
+    # make the title
+    if title:
+        kwargs = {}
+        if title_kwargs is not None:
+            kwargs.update(title_kwargs)
+        axes.set_title(title, **kwargs)
+    # modify ticks
+    if tick_kwargs is not None:
+        axes.tick_params(**tick_kwargs)
+    # tighten the figure
+    if tighten:
+        axes.figure.tight_layout()
 
 
 def cast_to_list(x):

@@ -5,9 +5,10 @@ import multiprocessing as mp
 from scipy.constants import e, k, hbar
 from scipy.interpolate import PchipInterpolator
 
-from superconductivity.utils import cast_to_list, setup_plot
 from superconductivity.multilayer.superconductor import Superconductor
 from superconductivity.multilayer.usadel import solve_imaginary, solve_real
+from superconductivity.utils import (cast_to_list, setup_plot,
+                                     finalize_plot, get_scale)
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
@@ -211,75 +212,163 @@ class Stack:
 
         log.info("Pair angle computed.")
 
-    def plot(self, axes_list=None, **kwargs):
+    def plot(self, axes_list=None, title=False, title_kwargs=None,
+             tick_kwargs=None, tighten=False, order_kwargs=None,
+             dos_kwargs=None, **kwargs):
+        # Setup the axes.
         if axes_list is None:
             from matplotlib import pyplot as plt
             figure, axes_list = plt.subplots(nrows=2, figsize=[6.4, 4.8 * 2])
         else:
             figure = axes_list[0].figure
-        self.plot_order(axes=axes_list[0])
-        self.plot_dos(axes=axes_list[1], **kwargs)
-        figure.tight_layout()
 
-    def plot_order(self, axes=None):
+        # Plot the order parameter.
+        kw = {}  # could add different default settings here
+        if order_kwargs is not None:
+            kw.update(order_kwargs)
+        kw.update(kwargs)
+
+        # Plot the density of states.
+        self.plot_order(axes=axes_list[0], **kw)
+        kw = {}  # could add different default settings here
+        if dos_kwargs is not None:
+            kw.update(order_kwargs)
+        kw.update(kwargs)
+        self.plot_dos(axes=axes_list[1], **kw)
+
+        # Finalize the axes.
+        if title:
+            kw = {}
+            if title_kwargs is not None:
+                kw.update(title_kwargs)
+            figure.suptitle(title, **kw)
+        if tick_kwargs is not None:
+            for axes in axes_list:
+                axes.tick_params(**tick_kwargs)
+        if tighten:
+            figure.tight_layout()
+        return axes_list
+
+    def plot_order(self, axes=None, energy_scale='meV', title=False,
+                   title_kwargs=None, legend=False, legend_kwargs=None,
+                   tick_kwargs=None, tighten=False):
+        # Set up the energy scale.
+        scale = get_scale(energy_scale)
+
+        # Setup the axes.
         _, axes = setup_plot(axes=axes)
+
+        # Loop over the layers.
         for i, layer in enumerate(self.layers):
+            # Plot the Pchip interpolation.
             start = self.interfaces[i]
             stop = self.interfaces[i + 1]
             interp = PchipInterpolator(self.z[start:stop],
                                        self.order[start:stop])
             z = np.linspace(self.z[start], self.z[stop - 1],
                             100 * (stop - start))
-            axes.plot(z * 1e9, interp(z) / e * 1e3,
-                      label="layer {}".format(i + 1), color="C{}".format(i),
-                      linestyle='-')
+            line, = axes.plot(z * 1e9, interp(z) / e * scale,
+                              label="layer {}".format(i + 1),  linestyle='-')
+
+            # Plot the bulk values.
             if isinstance(layer, Superconductor):
-                axes.plot(z * 1e9, np.full(z.shape, layer.delta0 / e * 1e3),
-                          label="bulk {}".format(i + 1), color="C{}".format(i),
-                          linestyle='--')
+                axes.plot(z * 1e9, np.full(z.shape, layer.delta0 / e * scale),
+                          label="bulk {}".format(i + 1),
+                          color=line.get_color(), linestyle='--')
             else:
                 axes.plot(z * 1e9, np.zeros(z.shape),
-                          label="bulk {}".format(i + 1), color="C{}".format(i),
-                          linestyle='--')
-        axes.plot(self.z * 1e9, self.order / e * 1e3, linestyle='none',
-                  marker='o', markersize=3, color='k')
-        axes.set_ylabel("order parameter [meV]")
-        axes.set_xlabel("position [nm]")
-        axes.legend(frameon=False)
+                          label="bulk {}".format(i + 1),
+                          color=line.get_color(), linestyle='--')
 
-    def plot_dos(self, axes=None, location='edges'):
+        # Plot the simulation points.
+        axes.plot(self.z * 1e9, self.order / e * scale, linestyle='none',
+                  marker='o', markersize=3, color='k')
+
+        # Make the axes labels.
+        axes.set_ylabel(f"order parameter [{energy_scale}]")
+        axes.set_xlabel("position [nm]")
+
+        # Finalize the plot.
+        finalize_plot(axes=axes, title=title, title_kwargs=title_kwargs,
+                      legend=legend, legend_kwargs=legend_kwargs,
+                      tick_kwargs=tick_kwargs, tighten=tighten)
+        return axes
+
+    def plot_dos(self, axes=None, location='edges', fix_color=False,
+                 energy_scale='meV', title=False, title_kwargs=None,
+                 legend=False, legend_kwargs=None, tick_kwargs=None,
+                 tighten=False):
+
+        # Set up the energy scale.
+        scale = get_scale(energy_scale)
+
+        # Setup the axes.
         _, axes = setup_plot(axes=axes)
-        energy = self.e / e * 1e3
-        for i, layer in enumerate(self.layers):
+
+        # Parse the location input if it's a string
+        n = len(self.layers)
+        if isinstance(location, str):
             if location.lower() == 'edges':
-                axes.plot(energy, np.real(np.cos(layer.theta[:, 0])),
-                          label="layer {}: lower".format(i + 1),
-                          color="C{}".format(i), linestyle='-')
-                axes.plot(energy, np.real(np.cos(layer.theta[:, -1])),
-                          label="layer {}: upper".format(i + 1),
-                          color="C{}".format(i), linestyle='--')
-            elif location.lower() in ['centers', 'mixed']:
-                if location.lower() == "mixed" and i == 0:
-                    theta = layer.theta[:, 0]
-                    label = "layer {}: bottom".format(i + 1)
-                elif location.lower() == "mixed" and i == len(self.layers) - 1:
-                    theta = layer.theta[:, -1]
-                    label = "layer {}: top".format(i + 1)
-                else:
+                location = [['b', 't'] for _ in range(n)]
+            elif location.lower() == 'centers':
+                location = [['c'] for _ in range(n)]
+            elif location.lower() == 'mixed':
+                location = ['b'] + [['c'] for _ in range(n - 2)] + ['t']
+            else:
+                raise ValueError(f"'{location}' is not a valid location.")
+
+        # Loop over the layers.
+        line = None
+        energy = self.e / e * scale
+        for i, layer in enumerate(self.layers):
+            # Reset the line if we are cycling the line color.
+            if not fix_color:
+                line = None
+
+            # Loop over the locations in the layer
+            for loc in location[i]:
+                # Plot the bottom of the layer
+                if loc.lower().startswith('b'):
+                    line, = axes.plot(energy,
+                                      np.real(np.cos(layer.theta[:, 0])),
+                                      label="layer {}: bottom".format(i + 1),
+                                      linestyle='-',
+                                      color=line.get_color()
+                                      if line is not None else None)
+
+                # Plot the center of the layer
+                elif loc.lower().startswith('c'):
                     # Numpy not catching stray warning as of version 1.19.2
                     with np.errstate(invalid='ignore'):
-                        interp = PchipInterpolator(layer.z, layer.theta,
-                                                   axis=1)
-                    theta = interp(layer.z.mean())
-                    label = "layer {}: center".format(i + 1)
-                axes.plot(energy, np.real(np.cos(theta)),
-                          label=label, color="C{}".format(i), linestyle='-')
-            else:
-                raise ValueError("'{}' is not a valid location."
-                                 .format(location))
+                        pchip = PchipInterpolator(layer.z, layer.theta, axis=1)
+                    theta = pchip(layer.z.mean())
+                    line, = axes.plot(energy,
+                                      np.real(np.cos(theta)),
+                                      label="layer {}: center".format(i + 1),
+                                      linestyle='--',
+                                      color=line.get_color()
+                                      if line is not None else None)
+
+                # Plot the top of the layer
+                elif loc.lower().startswith('t'):
+                    line, = axes.plot(energy,
+                                      np.real(np.cos(layer.theta[:, -1])),
+                                      label="layer {}: top".format(i + 1),
+                                      linestyle='-.',
+                                      color=line.get_color()
+                                      if line is not None else None)
+                else:
+                    raise ValueError(f"'{loc}' is not a valid location.")
+
+        # Make the axes labels.
         axes.set_ylabel("normalized density of states")
-        axes.set_xlabel("energy [meV]")
-        axes.legend(frameon=False)
+        axes.set_xlabel(f"energy [{energy_scale}]")
+
+        # Finalize the plot.
+        finalize_plot(axes=axes, title=title, title_kwargs=title_kwargs,
+                      legend=legend, legend_kwargs=legend_kwargs,
+                      tick_kwargs=tick_kwargs, tighten=tighten)
+        return axes
 
     def _update_scale(self):
         tcs = [m.tc for m in self.layers if isinstance(m, Superconductor)]
