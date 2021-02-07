@@ -7,8 +7,8 @@ from scipy.interpolate import PchipInterpolator
 
 from superconductivity.multilayer.superconductor import Superconductor
 from superconductivity.multilayer.usadel import solve_imaginary, solve_real
-from superconductivity.utils import (cast_to_list, setup_plot,
-                                     finalize_plot, get_scale, raise_bvp)
+from superconductivity.utils import (cast_to_list, setup_plot, finalize_plot,
+                                     get_scale, raise_bvp)
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
@@ -251,7 +251,7 @@ class Stack:
         self.plot_order(axes=axes_list[0], **kw)
         kw = {}  # could add different default settings here
         if dos_kwargs is not None:
-            kw.update(order_kwargs)
+            kw.update(dos_kwargs)
         kw.update(kwargs)
         self.plot_dos(axes=axes_list[1], **kw)
 
@@ -269,7 +269,7 @@ class Stack:
         return axes_list
 
     def plot_order(self, axes=None, energy_scale='meV', title=False,
-                   title_kwargs=None, legend=False, legend_kwargs=None,
+                   title_kwargs=None, legend=True, legend_kwargs=None,
                    tick_kwargs=None, tighten=False):
         # Set up the energy scale.
         scale = get_scale(energy_scale)
@@ -315,7 +315,7 @@ class Stack:
 
     def plot_dos(self, axes=None, location='edges', fix_color=False,
                  energy_scale='meV', title=False, title_kwargs=None,
-                 legend=False, legend_kwargs=None, tick_kwargs=None,
+                 legend=True, legend_kwargs=None, tick_kwargs=None,
                  tighten=False):
 
         # Set up the energy scale.

@@ -52,7 +52,7 @@ for d in d_ti:
     Stack.RTOL = 1e-3
     Stack.SPEEDUP = 0
     Superconductor.Z_GRID = 10
-    Superconductor.E_GRID = 5000
+    Superconductor.E_GRID = 1500
     al.nc = 125
     ti.nc = 125
 
