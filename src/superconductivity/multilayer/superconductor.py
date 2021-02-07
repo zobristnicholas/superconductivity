@@ -73,7 +73,7 @@ class Superconductor(Metal):
         """
         # Initialize the gap.
         g = delta_bcs(self.t, self.tc, interp=True, approx=True)
-        self.gap = np.broadcast_to(g, self.z.shape)
+        self.gap = np.full(self.z.shape, g)
 
         # Initialize the Matsubara energies.
         self.wn = (2 * np.arange(0, self.nc + 1) + 1) * np.pi * k * self.t

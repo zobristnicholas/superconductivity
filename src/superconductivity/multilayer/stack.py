@@ -2,6 +2,7 @@ import copy
 import logging
 import numpy as np
 import multiprocessing as mp
+from scipy.optimize import brentq
 from scipy.constants import e, k, hbar
 from scipy.interpolate import PchipInterpolator
 
@@ -215,8 +216,8 @@ class Stack:
         # Solve the diffusion equation at the requested energies.
         theta, info = solve_real(
             self.e / self.scale, self.z, y_guess, self.order / self.scale,
-            self.boundaries, self.interfaces, self.RTOL,
-            self._get_threads(), **self.kwargs)
+            self.boundaries, self.interfaces, self.RTOL, self._get_threads(),
+            **self.kwargs)
         raise_bvp(info)
 
         # Collect the results into the different layer objects.
@@ -229,7 +230,51 @@ class Stack:
         log.info("Pair angle computed.")
 
     def update_gap(self):
-        pass
+        """
+        Update the gap energy for the entire stack based on the stack's
+        order parameter. Run update_order() first if the order parameter
+        is not up to date.
+        """
+        log.info("Computing the gap energy for a stack.")
+        # Cache the order parameter.
+        order = self.order
+
+        # Initialize the guess.
+        y_guess = np.zeros((2 * len(self.layers), self.e.size), dtype=complex)
+        y_guess[::2, :] = np.pi / 4 + 1j * np.pi / 4
+
+        # Define the function that we are trying to find the zero of.
+        def find_gap(scaled_energy, layer_index, position_index):
+            theta, info = solve_real(
+                scaled_energy, self.z, y_guess, order / self.scale,
+                self.boundaries, self.interfaces, self.RTOL, 1, **self.kwargs)
+            raise_bvp(info)
+            z_index = self.interfaces[layer_index] + position_index
+            return np.real(np.cos(theta[0, z_index])) - self.THRESHOLD
+
+        # Find the gap energy for each layer.
+        for i, layer in enumerate(self.layers):
+            log.info(f"Computing the gap for layer {i}.")
+            # Determine the most up to date density of states
+            dos = np.real(np.cos(layer.theta))
+
+            # Find the gap energy for each position in that layer.
+            for ii, _ in enumerate(layer.z):
+                # Compute guess based on the density of states.
+                max_e = layer.e[dos[:, ii] > self.THRESHOLD].min() / self.scale
+                min_e = layer.e[dos[:, ii] < self.THRESHOLD].max() / self.scale
+
+                # Compute the find_gap root.
+                try:
+                    layer.gap[ii] = self.scale * brentq(find_gap, min_e, max_e,
+                                                        args=(i, ii))
+                # Try using the whole energy range if the above bounds
+                # didn't work.
+                except ValueError:
+                    max_e = np.max(layer.e) / self.scale
+                    layer.gap[ii] = self.scale * brentq(find_gap, 0, max_e,
+                                                        args=(i, ii))
+        log.info("Gap energy computed.")
 
     def plot(self, axes_list=None, title=False, title_kwargs=None,
              tick_kwargs=None, tighten=True, order_kwargs=None,
