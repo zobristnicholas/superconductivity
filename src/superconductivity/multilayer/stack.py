@@ -232,7 +232,7 @@ class Stack:
         pass
 
     def plot(self, axes_list=None, title=False, title_kwargs=None,
-             tick_kwargs=None, tighten=False, order_kwargs=None,
+             tick_kwargs=None, tighten=True, order_kwargs=None,
              dos_kwargs=None, **kwargs):
         # Setup the axes.
         if axes_list is None:
