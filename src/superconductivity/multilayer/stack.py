@@ -51,11 +51,11 @@ class Stack:
         # Set up the default grid for the calculations.
         self._update_grid()
 
-        # Initialize all of the layers in their bulk state
+        # Initialize all of the layers in their bulk state.
         for layer in self.layers:
             layer.initialize_bulk()
 
-        # Update the material dependent arguments to the BVP solver
+        # Update the material dependent arguments to the BVP solver.
         self._update_args()
 
     @property
@@ -67,6 +67,20 @@ class Stack:
     def order(self):
         """The order parameter for the whole stack at z."""
         return np.concatenate([m.order for m in self.layers])
+
+    @property
+    def t(self):
+        """The temperatures of each layer in the stack."""
+        return [layer.t for layer in self.layers]
+
+    @t.setter
+    def t(self, temperatures):
+        if hasattr(temperatures, '__len__'):
+            for i, layer in enumerate(self.layers):
+                layer.t = temperatures[i]
+        else:
+            for layer in self.layers:
+                layer.t = temperatures
 
     def add_top(self, layer, boundary):
         """
