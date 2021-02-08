@@ -262,7 +262,16 @@ class Stack:
             theta, info = solve_real(
                 scaled_energy, self.z, y_guess, order / self.scale,
                 self.boundaries, self.interfaces, self.RTOL, 1, **self.kwargs)
-            raise_bvp(info)
+            try:
+                raise_bvp(info)
+            # If there's an error, check to see if the order parameter is
+            # really small. If so, the film is normal and we don't need the
+            # BVP solution anyways.
+            except RuntimeError as error:
+                if np.abs(order / self.scale).max() < self.THRESHOLD:
+                    return -1
+                else:
+                    raise error
             z_index = self.interfaces[layer_index] + position_index
             return np.real(np.cos(theta[0, z_index])) - self.THRESHOLD
 
