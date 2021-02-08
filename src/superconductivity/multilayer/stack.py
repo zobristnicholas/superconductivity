@@ -78,9 +78,11 @@ class Stack:
         if hasattr(temperatures, '__len__'):
             for i, layer in enumerate(self.layers):
                 layer.t = temperatures[i]
+                layer.initialize_bulk()
         else:
             for layer in self.layers:
                 layer.t = temperatures
+                layer.initialize_bulk()
 
     def add_top(self, layer, boundary):
         """
