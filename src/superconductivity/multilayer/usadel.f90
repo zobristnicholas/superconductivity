@@ -175,10 +175,10 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
                         bcb(ii) = yb(n_eqns)
                     else
                         ratio1 = rho(ii) * d(ii) / (rho(ii + 1) * d(ii + 1))
-                        ratio2 = rho(ii) * d(ii) / boundaries(ii)
+                        ratio2 = boundaries(ii) / rho(ii) * d(ii)
                         bcb(2 * ii - 1) = yb(2 * ii) + ratio1 * yb(2 * ii + 2)
-                        bcb(2 * ii) = yb(2 * ii) &
-                                - ratio2 * sin(yb(2 * ii + 1) - yb(2 * ii - 1))
+                        bcb(2 * ii) = ratio2 * yb(2 * ii) &
+                                - sin(yb(2 * ii + 1) - yb(2 * ii - 1))
                     end if
                 ! Set the boundary conditions for even layers.
                 else
@@ -187,10 +187,10 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
                         bca(ii) = ya(n_eqns)
                     else
                         ratio1 = rho(ii) * d(ii) / (rho(ii + 1) * d(ii + 1))
-                        ratio2 = rho(ii) * d(ii) / boundaries(ii)
+                        ratio2 = boundaries(ii) / rho(ii) * d(ii)
                         bca(2 * ii - 2) = ya(2 * ii) + ratio1 * ya(2 * ii + 2)
-                        bca(2 * ii - 1) = ya(2 * ii) &
-                                + ratio2 * sin(ya(2 * ii + 1) - ya(2 * ii - 1))
+                        bca(2 * ii - 1) = ratio2 * ya(2 * ii) &
+                                + sin(ya(2 * ii + 1) - ya(2 * ii - 1))
                     end if
                 end if
             end do
@@ -398,11 +398,11 @@ subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
                         bcb(n_layers + ii) = yb(n_eqns + n_eqns)  ! imaginary
                     else
                         ratio1 = rho(ii) * d(ii) / (rho(ii + 1) * d(ii + 1))
-                        ratio2 = rho(ii) * d(ii) / boundaries(ii)
+                        ratio2 = boundaries(ii) / rho(ii) * d(ii)
                         yc = yb(2 * ii + 1) + j * yb(n_eqns + 2 * ii + 1) &
                              - (yb(2 * ii - 1) + j * yb(n_eqns + 2 * ii - 1))
-                        bcc = yb(2 * ii) + j * yb(n_eqns + 2 * ii) &
-                            - ratio2 * sin(yc)
+                        bcc = ratio2 * (yb(2 * ii) + j * yb(n_eqns + 2 * ii)) &
+                            - sin(yc)
                         ! real part
                         bcb(2 * ii - 1) = yb(2 * ii) + ratio1 * yb(2 * ii + 2)
                         bcb(2 * ii) = bcc%re
@@ -419,11 +419,11 @@ subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
                         bca(n_layers + ii) = ya(n_eqns + n_eqns)  ! imaginary
                     else
                         ratio1 = rho(ii) * d(ii) / (rho(ii + 1) * d(ii + 1))
-                        ratio2 = rho(ii) * d(ii) / boundaries(ii)
+                        ratio2 = boundaries(ii) / rho(ii) * d(ii)
                         yc = ya(2 * ii + 1) + j * ya(n_eqns + 2 * ii + 1) &
                              - (ya(2 * ii - 1) + j * ya(n_eqns + 2 * ii - 1))
-                        bcc = ya(2 * ii) + j * ya(n_eqns + 2 * ii) &
-                            + ratio2 * sin(yc)
+                        bcc = ratio2 * (ya(2 * ii) + j * ya(n_eqns + 2 * ii)) &
+                            + sin(yc)
                         ! real part
                         bca(2 * ii - 2) = ya(2 * ii) + ratio1 * ya(2 * ii + 2)
                         bca(2 * ii - 1) = bcc%re
