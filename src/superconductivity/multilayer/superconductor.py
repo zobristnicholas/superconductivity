@@ -76,19 +76,19 @@ class Superconductor(Metal):
         self.gap = np.full(self.z.shape, g)
 
         # Initialize the Matsubara energies.
-        self.wn = (2 * np.arange(0, self.nc + 1) + 1) * np.pi * k * self.t
-        self.wn = self.wn[:, np.newaxis]
-        self.mtheta = np.arcsin(self.gap / np.sqrt(self.gap**2 + self.wn**2))
+        wn = (2 * np.arange(0, self.nc + 1) + 1) * np.pi * k * self.t
+        wn = wn[:, np.newaxis]
+        self.mtheta = np.arcsin(self.gap / np.sqrt(self.gap**2 + wn**2))
 
         # Initialize the order parameter.
         self.update_order()
 
         # Initialize the pair angle.
         self.theta = np.empty((self.E_GRID, self.Z_GRID), dtype=complex)
-        nonzero = (self.e != 0)
-        self.theta[nonzero, :] = np.arctan(1j * self.gap
-                                           / self.e[nonzero, np.newaxis])
-        self.theta[~nonzero, :] = np.pi / 2
+        zero = (self.e == 0)
+        self.theta[~zero, :] = np.arctan(1j * self.gap
+                                         / self.e[~zero, np.newaxis])
+        self.theta[zero, :] = np.pi / 2
 
     def update_order(self):
         """

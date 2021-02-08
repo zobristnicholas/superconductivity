@@ -38,7 +38,6 @@ class Metal:
         self.z = np.linspace(0.0, self.d, self.E_GRID)
         # There is no natural energy scale for a simple metal.
         self.e = np.linspace(0.0, 1.0, self.E_GRID)
-        self.wn = None
         self.order = None
         self.mtheta = None
         self.theta = None
@@ -64,11 +63,10 @@ class Metal:
         grid locations.
         """
         # Initialize the Matsubara energies and pair angles.
-        self.wn = (2 * np.arange(0, self.nc + 1) + 1) * np.pi * k * self.t
-        self.mtheta = np.zeros((self.nc + 1, self.Z_GRID))
+        self.mtheta = np.zeros((1, self.Z_GRID))
 
         # Initialize the order parameter.
-        self.update_order()
+        self.order = np.zeros(self.Z_GRID)
 
         # Initialize the gap energy.
         self.gap = self.order
