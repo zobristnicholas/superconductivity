@@ -3,8 +3,8 @@
 # of the gap energy.
 import logging
 import numpy as np
-from scipy.constants import hbar, k, e
 from matplotlib import pyplot as plt
+from scipy.constants import hbar, k, e
 from superconductivity.gap_functions import delta_bcs
 from superconductivity.multilayer import Stack, Superconductor
 
@@ -18,8 +18,6 @@ d_ti = 100e-9
 tc_ti = 0.55
 # Debye temperature [K]
 td_ti = 426  # not actually used since we fix nc later
-# coherence length [m]
-xi_ti = 110e-9
 # diffusion constant [m^2 / s]
 dc_ti = 1.5
 # resistivity [Ohm m]
@@ -32,15 +30,13 @@ d_al = 100e-9
 tc_al = 1.2
 # Debye temperature [K]
 td_al = 423  # not actually used since we fix nc later
-# coherence length [m]
-xi_al = 170e-9
 # diffusion constant [m^2 / s]
 dc_al = 35
 # resistivity [Ohm m]
 rho_al = 1 / 132 * 1e-6
 
 # Other parameters
-rb = 0.0 * rho_al * xi_al  # boundary resistance [Ohm m^2]
+rb = 0.0  # boundary resistance [Ohm m^2]
 min_t = min(tc_al, tc_ti) / 10
 max_t = max(tc_al, tc_ti)
 t = np.linspace(min_t, max_t, 100)  # temperature [K]
