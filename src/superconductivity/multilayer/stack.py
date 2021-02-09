@@ -6,6 +6,8 @@ from scipy.optimize import brentq
 from scipy.constants import e, k, hbar
 from scipy.interpolate import PchipInterpolator
 
+from superconductivity.utils import BCS
+from superconductivity.gap_functions import reduced_delta_bcs
 from superconductivity.multilayer.superconductor import Superconductor
 from superconductivity.multilayer.usadel import solve_imaginary, solve_real
 from superconductivity.utils import (cast_to_list, setup_plot, finalize_plot,
@@ -117,12 +119,9 @@ class Stack:
         compute more than you need, so if computation time is important,
         run only the routines required.
         """
-        self.update_tc()  # approximate the transition temperature
         self.update_dos()  # computes the density of states
         self.update_gap()  # compute the gap energy
-
-    def update_tc(self):
-        pass
+        self.update_tc()  # computes the transition temperature
 
     def update_dos(self):
         """
@@ -300,6 +299,24 @@ class Stack:
                     layer.gap[ii] = self.scale * brentq(find_gap, 0, max_e,
                                                         args=(i, ii))
         log.info("Gap energy computed.")
+
+    def update_tc(self):
+        """
+        Update the transition temperature for the stack based on the
+        stack's gap energy. Run update_order() and update_gap() first if
+        the stack is not up to date. This routine only gives sensible
+        answers if the film is thin enough to have a constant gap
+        energy over its entire thickness.
+        """
+        log.info("Computing the transition temperature for a stack.")
+        gap = np.concatenate([layer.gap for layer in self.layers])
+        if not np.allclose(gap, gap[0], rtol=self.RTOL, atol=0):
+            raise ValueError("Cannot compute a single value for the Tc if "
+                             "there are multiple values for the gap energy.")
+        gap = gap.mean()
+
+        self.tc = gap * reduced_delta_bcs(self.t[0], approx=True) / (BCS * k)
+        log.info("Transition temperature computed.")
 
     def plot(self, axes_list=None, title=False, title_kwargs=None,
              tick_kwargs=None, tighten=True, order_kwargs=None,
