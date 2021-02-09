@@ -1,5 +1,6 @@
-# This file simulates the Al/Ti/Al trilayer discussed in Zhao et al. 2018
-# (doi:10.1088/1361-6668/aa94b7) and reproduces figure 3.
+# This file simulates the Al/Ti bilayer discussed in Zhao et al. 2018
+# (doi:10.1088/1361-6668/aad788) and determines the temperature dependence
+# of the gap energy.
 import logging
 import numpy as np
 from scipy.constants import hbar, k, e
