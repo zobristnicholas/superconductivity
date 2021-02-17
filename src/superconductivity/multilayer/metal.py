@@ -1,3 +1,4 @@
+import pickle
 import numpy as np
 from scipy.constants import e
 from scipy.special import digamma
@@ -57,6 +58,20 @@ class Metal:
         else:
             self.dc = dc
             self.n0 = 1 / (self.rho * self.dc * e**2)
+
+    def to_pickle(self, file_name):
+        """Save the class instance to a pickle file."""
+        with open(file_name, "wb") as f:
+            pickle.dump(self, f)
+
+    @classmethod
+    def from_pickle(cls, file_name):
+        """Loads a saved class instance from a pickle file and returns it."""
+        with open(file_name, "rb") as f:
+            obj = pickle.load(f)
+        if not isinstance(obj, cls):
+            raise TypeError(f"{file_name} does not contain the correct class.")
+        return obj
 
     def initialize_bulk(self):
         """

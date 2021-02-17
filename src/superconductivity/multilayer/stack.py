@@ -1,4 +1,5 @@
 import copy
+import pickle
 import logging
 import numpy as np
 import multiprocessing as mp
@@ -86,6 +87,20 @@ class Stack:
             for layer in self.layers:
                 layer.t = temperatures
                 layer.initialize_bulk()
+
+    def to_pickle(self, file_name):
+        """Save the class instance to a pickle file."""
+        with open(file_name, "wb") as f:
+            pickle.dump(self, f)
+
+    @classmethod
+    def from_pickle(cls, file_name):
+        """Loads a saved class instance from a pickle file and returns it."""
+        with open(file_name, "rb") as f:
+            obj = pickle.load(f)
+        if not isinstance(obj, cls):
+            raise TypeError(f"{file_name} does not contain the correct class.")
+        return obj
 
     def add_top(self, layer, boundary):
         """
