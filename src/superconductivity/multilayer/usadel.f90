@@ -41,7 +41,7 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
     end do
 
     ! Loop over the energies at which we want to solve the BVP.
-    !$omp parallel do private(y_guess, sol, start, stop, zp, y)
+    !$omp parallel do private(i, ii, y_guess, sol, start, stop, zp, y)
     do i = 1, n_energy
         ! Only do the loop if no loops have had problems.
         if (info == 0) then
@@ -58,19 +58,19 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
             ! Check to see if there were problems.
             if (sol%info /= 0) then
                 info = sol%info
+            else
+                ! Return the solution.
+                do ii = 1, n_layers
+                    start = interfaces(ii) + 1
+                    stop = interfaces(ii + 1)
+                    zp(start:stop) = transform(z(start:stop), ii)
+                    call bvp_eval(sol, zp(start:stop), y(:, start:stop))
+                    theta(i, start:stop) = y(2 * ii - 1, start:stop)
+                end do
+
+                ! Deallocate solution memory.
+                call bvp_terminate(sol)
             end if
-
-            ! Return the solution.
-            do ii = 1, n_layers
-                start = interfaces(ii) + 1
-                stop = interfaces(ii + 1)
-                zp(start:stop) = transform(z(start:stop), ii)
-                call bvp_eval(sol, zp(start:stop), y(:, start:stop))
-                theta(i, start:stop) = y(2 * ii - 1, start:stop)
-            end do
-
-            ! Deallocate solution memory.
-            call bvp_terminate(sol)
         end if
     end do
     !$omp end parallel do
@@ -245,7 +245,7 @@ subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
     end do
 
     ! Loop over the energies at which we want to solve the BVP.
-    !$omp parallel do private(y_guess, sol, start, stop, zp, y)
+    !$omp parallel do private(i, ii, y_guess, sol, start, stop, zp, y)
     do i = 1, n_energy
         ! Only do the loop if no loops have had problems.
         if (info == 0) then
@@ -263,20 +263,20 @@ subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
             ! Check to see if there were problems.
             if (sol%info /= 0) then
                 info = sol%info
+            else
+                ! Return the solution.
+                do ii = 1, n_layers
+                    start = interfaces(ii) + 1
+                    stop = interfaces(ii + 1)
+                    zp(start:stop) = transform(z(start:stop), ii)
+                    call bvp_eval(sol, zp(start:stop), y(:, start:stop))
+                    theta(i, start:stop) = y(2 * ii - 1, start:stop) &
+                        + j * y(n_eqns + 2 * ii - 1, start:stop)
+                end do
+
+                ! Deallocate solution memory.
+                call bvp_terminate(sol)
             end if
-
-            ! Return the solution.
-            do ii = 1, n_layers
-                start = interfaces(ii) + 1
-                stop = interfaces(ii + 1)
-                zp(start:stop) = transform(z(start:stop), ii)
-                call bvp_eval(sol, zp(start:stop), y(:, start:stop))
-                theta(i, start:stop) = y(2 * ii - 1, start:stop) &
-                    + j * y(n_eqns + 2 * ii - 1, start:stop)
-            end do
-
-            ! Deallocate solution memory.
-            call bvp_terminate(sol)
         end if
     end do
     !$omp end parallel do
