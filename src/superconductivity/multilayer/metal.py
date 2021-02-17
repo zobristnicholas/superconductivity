@@ -66,7 +66,9 @@ class Metal:
 
     @classmethod
     def from_pickle(cls, file_name):
-        """Loads a saved class instance from a pickle file and returns it."""
+        """
+        Loads a saved class instance from a pickle file and returns it.
+        """
         with open(file_name, "rb") as f:
             obj = pickle.load(f)
         if not isinstance(obj, cls):
