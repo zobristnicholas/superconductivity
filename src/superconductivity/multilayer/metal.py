@@ -26,18 +26,19 @@ class Metal:
             be provided.
             doi:10.1016/S0168-9002(99)01320-0
     """
-    Z_GRID = 5  # position grid points
-    E_GRID = 1000  # energy grid points
-
     def __init__(self, d, rho, t, dc=None, *, n0=None):
         self.d = d  # thickness
         self.rho = rho  # resistivity
         self.t = t  # temperature
 
+        # Define computation parameters.
+        self.z_grid = 5  # position grid points
+        self.e_grid = 1000  # energy grid points
+
         # Initialize the solution grid placeholders.
-        self.z = np.linspace(0.0, self.d, self.E_GRID)
+        self.z = np.linspace(0.0, self.d, self.e_grid)
         # There is no natural energy scale for a simple metal.
-        self.e = np.linspace(0.0, 1.0, self.E_GRID)
+        self.e = np.linspace(0.0, 1.0, self.e_grid)
         self.order = None
         self.mtheta = None
         self.theta = None
@@ -63,16 +64,16 @@ class Metal:
         grid locations.
         """
         # Initialize the Matsubara energies and pair angles.
-        self.mtheta = np.zeros((1, self.Z_GRID))
+        self.mtheta = np.zeros((1, self.z_grid))
 
         # Initialize the order parameter.
-        self.order = np.zeros(self.Z_GRID)
+        self.order = np.zeros(self.z_grid)
 
         # Initialize the gap energy.
         self.gap = self.order
 
         # Initialize the pair angle.
-        self.theta = np.zeros((self.E_GRID, self.Z_GRID))
+        self.theta = np.zeros((self.e_grid, self.z_grid))
 
     def update_order(self):
         """
@@ -84,4 +85,4 @@ class Metal:
         # zero, so the order parameter is always zero. We don't need to
         # update it here unless it hasn't been initialized.
         if self.order is None:
-            self.order = np.zeros(self.Z_GRID)
+            self.order = np.zeros(self.z_grid)

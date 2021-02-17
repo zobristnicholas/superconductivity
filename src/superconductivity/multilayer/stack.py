@@ -31,12 +31,6 @@ class Stack:
             interface between layers. There should be one less than the
             number of layers.
     """
-    RTOL = 1e-8  # relative convergence tolerance
-    MAX_ITERATIONS = 100  # maximum number of iterations to converge
-    SPEEDUP = 10  # every <SPEEDUP> iteration is a Steffensen iteration
-    THRESHOLD = 1e-3  # DOS threshold for determining the gap energy
-    THREADS = True  # Use <THREADS> threads. True uses half of the maximum #.
-
     def __init__(self, layers, boundaries):
         layers = cast_to_list(layers)
         boundaries = cast_to_list(boundaries)
@@ -59,6 +53,13 @@ class Stack:
 
         # Update the material dependent arguments to the BVP solver.
         self._update_args()
+
+        # Define computation parameters.
+        self.rtol = 1e-8  # relative convergence tolerance
+        self.max_iterations = 100  # maximum number of iterations to converge
+        self.speedup = 10  # Do a Steffensen iteration every <SPEEDUP> times.
+        self.threshold = 1e-3  # DOS threshold for determining the gap energy
+        self.threads = True  # Use <THREADS> threads. True uses half available.
 
     @property
     def d(self):
@@ -168,12 +169,12 @@ class Stack:
 
         # Iterate between solving for the order and pair angle until the
         # order converges or we run out of iterations.
-        while r > self.RTOL and i < self.MAX_ITERATIONS:
+        while r > self.rtol and i < self.max_iterations:
             # Update the iteration counter.
             i += 1
 
             # Perform a Steffensen's iteration to boost convergence speed.
-            if self.SPEEDUP and (i % self.SPEEDUP == 0):
+            if self.speedup and (i % self.speedup == 0):
                 order = order3 - (order2 - order3)**2 / (order1 - 2 * order2
                                                          + order3)
 
@@ -192,7 +193,7 @@ class Stack:
                 # Solve the diffusion equation at the Matsubara energies.
                 theta, info = solve_imaginary(
                     wn / self.scale, self.z, y_guess, self.order / self.scale,
-                    self.boundaries, self.interfaces, self.RTOL,
+                    self.boundaries, self.interfaces, self.rtol,
                     self._get_threads(),  **self.kwargs)
                 raise_bvp(info)
 
@@ -231,7 +232,7 @@ class Stack:
         # Solve the diffusion equation at the requested energies.
         theta, info = solve_real(
             self.e / self.scale, self.z, y_guess, self.order / self.scale,
-            self.boundaries, self.interfaces, self.RTOL, self._get_threads(),
+            self.boundaries, self.interfaces, self.rtol, self._get_threads(),
             **self.kwargs)
         raise_bvp(info)
 
@@ -262,19 +263,19 @@ class Stack:
         def find_gap(scaled_energy, layer_index, position_index):
             theta, info = solve_real(
                 scaled_energy, self.z, y_guess, order / self.scale,
-                self.boundaries, self.interfaces, self.RTOL, 1, **self.kwargs)
+                self.boundaries, self.interfaces, self.rtol, 1, **self.kwargs)
             try:
                 raise_bvp(info)
             # If there's an error, check to see if the order parameter is
             # really small. If so, the film is normal and we don't need the
             # BVP solution anyways.
             except RuntimeError as error:
-                if np.abs(order / self.scale).max() < self.THRESHOLD:
+                if np.abs(order / self.scale).max() < self.threshold:
                     return -1
                 else:
                     raise error
             z_index = self.interfaces[layer_index] + position_index
-            return np.real(np.cos(theta[0, z_index])) - self.THRESHOLD
+            return np.real(np.cos(theta[0, z_index])) - self.threshold
 
         # Find the gap energy for each layer.
         for i, layer in enumerate(self.layers):
@@ -285,8 +286,8 @@ class Stack:
             # Find the gap energy for each position in that layer.
             for ii, _ in enumerate(layer.z):
                 # Compute guess based on the density of states.
-                max_e = layer.e[dos[:, ii] > self.THRESHOLD].min() / self.scale
-                min_e = layer.e[dos[:, ii] < self.THRESHOLD].max() / self.scale
+                max_e = layer.e[dos[:, ii] > self.threshold].min() / self.scale
+                min_e = layer.e[dos[:, ii] < self.threshold].max() / self.scale
 
                 # Compute the find_gap root.
                 try:
@@ -310,7 +311,7 @@ class Stack:
         """
         log.info("Computing the transition temperature for a stack.")
         gap = np.concatenate([layer.gap for layer in self.layers])
-        if not np.allclose(gap, gap[0], rtol=self.RTOL, atol=0):
+        if not np.allclose(gap, gap[0], rtol=self.rtol, atol=0):
             raise ValueError("Cannot compute a single value for the Tc if "
                              "there are multiple values for the gap energy.")
         gap = gap.mean()
@@ -486,7 +487,7 @@ class Stack:
         for layer in self.layers:
             start.append(sum(stop[-1:]))
             stop.append(layer.d + sum(stop[-1:]))
-            layer.z = np.linspace(start[-1], stop[-1], layer.Z_GRID)
+            layer.z = np.linspace(start[-1], stop[-1], layer.z_grid)
         self.z = np.concatenate([m.z for m in self.layers])
 
         # Set the interface indices for the z grid.
@@ -499,10 +500,10 @@ class Stack:
                                  "correct number of layers.")
 
         # Set the energy grid.
-        if any([m.E_GRID != self.layers[0].E_GRID for m in self.layers]):
+        if any([m.e_grid != self.layers[0].e_grid for m in self.layers]):
             raise AttributeError("All layers must have the same E_GRID "
                                  "constant.")
-        energies = np.linspace(0, 2 * self.scale, self.layers[0].E_GRID)
+        energies = np.linspace(0, 2 * self.scale, self.layers[0].e_grid)
         self.e = energies
         for layer in self.layers:
             layer.e = self.e
@@ -530,10 +531,10 @@ class Stack:
                        "z_guess": z_guess}
 
     def _get_threads(self):
-        if self.THREADS is True:
+        if self.threads is True:
             cpu = mp.cpu_count()
             return cpu // 2 + (cpu % 2 > 0)  # divide by 2 and round up
-        elif self.THREADS is False:
+        elif self.threads is False:
             return 1
         else:
-            return self.THREADS
+            return self.threads

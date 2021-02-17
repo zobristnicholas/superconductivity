@@ -84,7 +84,7 @@ class Superconductor(Metal):
         self.update_order()
 
         # Initialize the pair angle.
-        self.theta = np.empty((self.E_GRID, self.Z_GRID), dtype=complex)
+        self.theta = np.empty((self.e_grid, self.z_grid), dtype=complex)
         zero = (self.e == 0)
         self.theta[~zero, :] = np.arctan(1j * self.gap
                                          / self.e[~zero, np.newaxis])
