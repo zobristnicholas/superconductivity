@@ -27,7 +27,8 @@ platform = ".{}-{}.{}".format(get_platform(), *sys.version_info[:2])
 extension = Extension(name="superconductivity.multilayer.usadel",
                       sources=["src/superconductivity/multilayer/usadel.f90"],
                       libraries=["bvp_m-2", "bvp_la-2", "pchip"],
-                      include_dirs=["build/temp" + platform])
+                      include_dirs=["build/temp" + platform],
+                      extra_f90_compile_args=["-fopenmp"])
 
 setup(name='superconductivity',
       description='Tools for computing the properties of superconductors',
@@ -48,7 +49,8 @@ setup(name='superconductivity',
                    'Programming Language :: Python',
                    'Topic :: Scientific/Engineering :: Physics'],
       libraries=[('bvp_m-2', dict(sources=['external/bvp_m-2.f90'],
-                                  extra_compile_args=["-std=f95"])),
+                                  extra_compile_args=["-std=f95"],
+                                  extra_f90_compile_args=["-fopenmp"])),
                  ('bvp_la-2', dict(sources=['external/bvp_la-2.f'],
                                    extra_compile_args=["-std=legacy"])),
                  ('pchip', dict(sources=['external/pchip.f90'],

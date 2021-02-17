@@ -43,31 +43,35 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
     ! Loop over the energies at which we want to solve the BVP.
     !$omp parallel do private(y_guess, sol, start, stop, zp, y)
     do i = 1, n_energy
-        energy = energies(i)  ! threadprivate global variable
+        ! Only do the loop if no loops have had problems.
+        if (info == 0) then
+            energy = energies(i)  ! threadprivate global variable
 
-        !Determine the best guess for y for this energy.
-        y_guess = theta_old(:, min(i, n_min))
+            !Determine the best guess for y for this energy.
+            y_guess = theta_old(:, min(i, n_min))
 
-        ! Solve the diffusion equation.
-        sol = bvp_init(n_eqns, n_layers, z_guess, y_guess)
-        sol = bvp_solver(sol, f, bc, dfdy=jac, tol=tol, trace=0, &
-                         stop_on_fail=.false.)
-        if (sol%info /= 0) then
-            info = sol%info
-            exit
+            ! Solve the diffusion equation.
+            sol = bvp_init(n_eqns, n_layers, z_guess, y_guess)
+            sol = bvp_solver(sol, f, bc, dfdy=jac, tol=tol, trace=0, &
+                             stop_on_fail=.false.)
+
+            ! Check to see if there were problems.
+            if (sol%info /= 0) then
+                info = sol%info
+            end if
+
+            ! Return the solution.
+            do ii = 1, n_layers
+                start = interfaces(ii) + 1
+                stop = interfaces(ii + 1)
+                zp(start:stop) = transform(z(start:stop), ii)
+                call bvp_eval(sol, zp(start:stop), y(:, start:stop))
+                theta(i, start:stop) = y(2 * ii - 1, start:stop)
+            end do
+
+            ! Deallocate solution memory.
+            call bvp_terminate(sol)
         end if
-
-        ! Return the solution
-        do ii = 1, n_layers
-            start = interfaces(ii) + 1
-            stop = interfaces(ii + 1)
-            zp(start:stop) = transform(z(start:stop), ii)
-            call bvp_eval(sol, zp(start:stop), y(:, start:stop))
-            theta(i, start:stop) = y(2 * ii - 1, start:stop)
-        end do
-
-        ! Deallocate solution memory
-        call bvp_terminate(sol)
     end do
     !$omp end parallel do
 
@@ -108,12 +112,12 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
             real(kind=dp) :: r
             real(kind=dp) :: zpp(1)
             integer :: start, stop
-            ! Undo transform to put zp in normal coordinates
+            ! Undo transform to put zp in normal coordinates.
             zpp = itransform([zp], ii)
 
             start = interfaces(ii) + 1
             stop = interfaces(ii + 1)
-            ! Extract the interpolated data
+            ! Extract the interpolated data.
             call dpchfe(stop - start + 1, z(start:stop), order(start:stop), &
                         dorder(start:stop), 1, .false., 1, zpp, rs, err)
             r = rs(1)
@@ -243,34 +247,37 @@ subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
     ! Loop over the energies at which we want to solve the BVP.
     !$omp parallel do private(y_guess, sol, start, stop, zp, y)
     do i = 1, n_energy
-        energy = energies(i)  ! threadprivate global variable
+        ! Only do the loop if no loops have had problems.
+        if (info == 0) then
+            energy = energies(i)  ! threadprivate global variable
 
-        !Determine the best guess for y for this energy.
-        y_guess(:n_eqns) = theta_old(:, min(i, n_min))%re
-        y_guess(n_eqns + 1:) = theta_old(:, min(i, n_min))%im
+            !Determine the best guess for y for this energy.
+            y_guess(:n_eqns) = theta_old(:, min(i, n_min))%re
+            y_guess(n_eqns + 1:) = theta_old(:, min(i, n_min))%im
 
-        ! Solve the diffusion equation.
-        sol = bvp_init(2 * n_eqns, 2 * n_layers, z_guess, y_guess)
-        sol = bvp_solver(sol, f, bc, dfdy=jac, tol=tol, trace=0, &
-                         stop_on_fail=.false.)
+            ! Solve the diffusion equation.
+            sol = bvp_init(2 * n_eqns, 2 * n_layers, z_guess, y_guess)
+            sol = bvp_solver(sol, f, bc, dfdy=jac, tol=tol, trace=0, &
+                             stop_on_fail=.false.)
 
-        if (sol%info /= 0) then
-            info = sol%info
-            exit
+            ! Check to see if there were problems.
+            if (sol%info /= 0) then
+                info = sol%info
+            end if
+
+            ! Return the solution.
+            do ii = 1, n_layers
+                start = interfaces(ii) + 1
+                stop = interfaces(ii + 1)
+                zp(start:stop) = transform(z(start:stop), ii)
+                call bvp_eval(sol, zp(start:stop), y(:, start:stop))
+                theta(i, start:stop) = y(2 * ii - 1, start:stop) &
+                    + j * y(n_eqns + 2 * ii - 1, start:stop)
+            end do
+
+            ! Deallocate solution memory.
+            call bvp_terminate(sol)
         end if
-
-        ! Return the solution
-        do ii = 1, n_layers
-            start = interfaces(ii) + 1
-            stop = interfaces(ii + 1)
-            zp(start:stop) = transform(z(start:stop), ii)
-            call bvp_eval(sol, zp(start:stop), y(:, start:stop))
-            theta(i, start:stop) = y(2 * ii - 1, start:stop) &
-                + j * y(n_eqns + 2 * ii - 1, start:stop)
-        end do
-
-        ! Deallocate solution memory
-        call bvp_terminate(sol)
     end do
     !$omp end parallel do
 
@@ -311,12 +318,12 @@ subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
             real(kind=dp) :: r
             real(kind=dp) :: zpp(1)
             integer :: start, stop
-            ! Undo transform to put zp in normal coordinates
+            ! Undo transform to put zp in normal coordinates.
             zpp = itransform([zp], ii)
 
             start = interfaces(ii) + 1
             stop = interfaces(ii + 1)
-            ! Extract the interpolated data
+            ! Extract the interpolated data.
             call dpchfe(stop - start + 1, z(start:stop), order(start:stop), &
                         dorder(start:stop), 1, .false., 1, zpp, rs, err)
             r = rs(1)

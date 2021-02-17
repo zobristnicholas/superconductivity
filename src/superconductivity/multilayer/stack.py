@@ -35,7 +35,7 @@ class Stack:
     MAX_ITERATIONS = 100  # maximum number of iterations to converge
     SPEEDUP = 10  # every <SPEEDUP> iteration is a Steffensen iteration
     THRESHOLD = 1e-3  # DOS threshold for determining the gap energy
-    THREADS = True  # Use <THREADS> threads. True uses the maximum available.
+    THREADS = True  # Use <THREADS> threads. True uses half of the maximum #.
 
     def __init__(self, layers, boundaries):
         layers = cast_to_list(layers)
@@ -531,7 +531,8 @@ class Stack:
 
     def _get_threads(self):
         if self.THREADS is True:
-            return mp.cpu_count()
+            cpu = mp.cpu_count()
+            return cpu // 2 + (cpu % 2 > 0)  # divide by 2 and round up
         elif self.THREADS is False:
             return 1
         else:
