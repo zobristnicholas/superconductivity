@@ -63,6 +63,7 @@ class Metal:
         """Save the class instance to a pickle file."""
         with open(file_name, "wb") as f:
             pickle.dump(self, f)
+        log.info(f"Saved {self} to '{file_name}'.")
 
     @classmethod
     def from_pickle(cls, file_name):
@@ -73,6 +74,7 @@ class Metal:
             obj = pickle.load(f)
         if not isinstance(obj, cls):
             raise TypeError(f"{file_name} does not contain the correct class.")
+        log.info(f"Loaded {cls} from '{file_name}'.")
         return obj
 
     def initialize_bulk(self):
