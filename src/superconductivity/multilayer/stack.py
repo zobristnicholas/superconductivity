@@ -60,7 +60,12 @@ class Stack:
         self.max_iterations = 100  # maximum number of iterations to converge
         self.speedup = 10  # Do a Steffensen iteration every <SPEEDUP> times.
         self.threshold = 1e-3  # DOS threshold for determining the gap energy
-        self.threads = True  # Use <THREADS> threads. True uses half available.
+        # Use this many threads to parallelize over different energy
+        # computations. True uses half of those available.
+        self.threads = True
+        # Limit the maximum number of subintervals that the BVP solver can use
+        # to this value.
+        self.max_subintervals = 10000
 
     @property
     def d(self):
@@ -92,6 +97,7 @@ class Stack:
         """Save the class instance to a pickle file."""
         with open(file_name, "wb") as f:
             pickle.dump(self, f)
+        log.info(f"Saved {self} to '{file_name}'.")
 
     @classmethod
     def from_pickle(cls, file_name):
@@ -102,6 +108,7 @@ class Stack:
             obj = pickle.load(f)
         if not isinstance(obj, cls):
             raise TypeError(f"{file_name} does not contain the correct class.")
+        log.info(f"Loaded {cls} from '{file_name}'.")
         return obj
 
     def add_top(self, layer, boundary):
@@ -211,7 +218,7 @@ class Stack:
                 theta, info = solve_imaginary(
                     wn / self.scale, self.z, y_guess, self.order / self.scale,
                     self.boundaries, self.interfaces, self.rtol,
-                    self._get_threads(),  **self.kwargs)
+                    self._get_threads(), self.max_subintervals, **self.kwargs)
                 raise_bvp(info)
 
                 # Collect the results into the different layer objects.
@@ -250,7 +257,7 @@ class Stack:
         theta, info = solve_real(
             self.e / self.scale, self.z, y_guess, self.order / self.scale,
             self.boundaries, self.interfaces, self.rtol, self._get_threads(),
-            **self.kwargs)
+            self.max_subintervals, **self.kwargs)
         raise_bvp(info)
 
         # Collect the results into the different layer objects.
@@ -280,7 +287,8 @@ class Stack:
         def find_gap(scaled_energy, layer_index, position_index):
             theta, info = solve_real(
                 scaled_energy, self.z, y_guess, order / self.scale,
-                self.boundaries, self.interfaces, self.rtol, 1, **self.kwargs)
+                self.boundaries, self.interfaces, self.rtol, 1,
+                self.max_subintervals, **self.kwargs)
             try:
                 raise_bvp(info)
             # If there's an error, check to see if the order parameter is
@@ -316,6 +324,21 @@ class Stack:
                     max_e = np.max(layer.e) / self.scale
                     layer.gap[ii] = self.scale * brentq(find_gap, 0, max_e,
                                                         args=(i, ii))
+                except RuntimeError:
+                    # Determine the indices of the boundary energies.
+                    max_i = np.argwhere(dos[:, ii] > self.threshold).min()
+                    min_i = np.argwhere(dos[:, ii] < self.threshold).max()
+
+                    # Linearly interpolate between the boundary energies.
+                    e_threshold = ((self.threshold - dos[min_i, ii])
+                                   / (dos[max_i, ii] - dos[min_i, ii])
+                                   * (max_e - min_e)) + min_e
+                    layer.gap[ii] = e_threshold * self.scale
+
+                    log.warning("BVP_SOLVER failed to compute the gap "
+                                "energy, so the gap was computed by "
+                                "interpolating the pair angle over the "
+                                "precomputed energy grid.")
         log.info("Gap energy computed.")
 
     def update_tc(self):
@@ -333,7 +356,8 @@ class Stack:
                              "there are multiple values for the gap energy.")
         gap = gap.mean()
 
-        self.tc = gap * reduced_delta_bcs(self.t[0], approx=True) / (BCS * k)
+        tc = gap * reduced_delta_bcs(self.t[0], approx=True) / (BCS * k)
+        self.tc = tc[0]  # only need a scalar value
         log.info("Transition temperature computed.")
 
     def plot(self, axes_list=None, title=False, title_kwargs=None,

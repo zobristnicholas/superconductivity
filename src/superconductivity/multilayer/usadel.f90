@@ -1,13 +1,13 @@
 subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
-                           interfaces, tol, n_threads, d, rho, z_scale, &
-                           z_guess, n_layers, n_points, n_guess, n_energy, &
-                           n_min, theta, info)
+                           interfaces, tol, n_threads, max_sub, d, rho, &
+                           z_scale, z_guess, n_layers, n_points, n_guess, &
+                           n_energy, n_min, theta, info)
     use omp_lib
     use bvp_m
     implicit none
     integer, parameter :: dp=kind(1d0)
     integer, intent(in) :: n_layers, n_points, n_guess, n_energy, n_min
-    integer, intent(in) :: interfaces(n_layers + 1), n_threads
+    integer, intent(in) :: interfaces(n_layers + 1), n_threads, max_sub
     real(kind=dp), intent(in) :: boundaries(n_layers - 1), order(n_points)
     real(kind=dp), intent(in) :: energies(n_energy), z(n_points),  tol
     real(kind=dp), intent(in) :: d(n_layers), rho(n_layers), z_scale(n_layers)
@@ -51,7 +51,8 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
             y_guess = theta_old(:, min(i, n_min))
 
             ! Solve the diffusion equation.
-            sol = bvp_init(n_eqns, n_layers, z_guess, y_guess)
+            sol = bvp_init(n_eqns, n_layers, z_guess, y_guess, &
+                           max_num_subintervals=max_sub)
             sol = bvp_solver(sol, f, bc, dfdy=jac, tol=tol, trace=0, &
                              stop_on_fail=.false.)
 
@@ -203,14 +204,15 @@ end subroutine solve_imaginary
 
 
 subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
-                      tol, n_threads, d, rho, z_scale, z_guess, n_layers, &
-                      n_points, n_guess, n_energy, n_min, theta, info)
+                      tol, n_threads, max_sub, d, rho, z_scale, z_guess, &
+                      n_layers, n_points, n_guess, n_energy, n_min, theta, &
+                      info)
     use omp_lib
     use bvp_m
     implicit none
     integer, parameter :: dp=kind(1d0)
     integer, intent(in) :: n_layers, n_points, n_guess, n_energy, n_min
-    integer, intent(in) :: interfaces(n_layers + 1), n_threads
+    integer, intent(in) :: interfaces(n_layers + 1), n_threads, max_sub
     real(kind=dp), intent(in) :: boundaries(n_layers - 1), order(n_points)
     real(kind=dp), intent(in) :: energies(n_energy), z(n_points),  tol
     real(kind=dp), intent(in) :: d(n_layers), rho(n_layers), z_scale(n_layers)
@@ -256,7 +258,8 @@ subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
             y_guess(n_eqns + 1:) = theta_old(:, min(i, n_min))%im
 
             ! Solve the diffusion equation.
-            sol = bvp_init(2 * n_eqns, 2 * n_layers, z_guess, y_guess)
+            sol = bvp_init(2 * n_eqns, 2 * n_layers, z_guess, y_guess, &
+                           max_num_subintervals=max_sub)
             sol = bvp_solver(sol, f, bc, dfdy=jac, tol=tol, trace=0, &
                              stop_on_fail=.false.)
 
