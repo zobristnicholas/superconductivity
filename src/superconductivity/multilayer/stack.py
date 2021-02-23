@@ -352,8 +352,8 @@ class Stack:
         log.info("Computing the transition temperature for a stack.")
         gap = np.concatenate([layer.gap for layer in self.layers])
         if not np.allclose(gap, gap[0], rtol=self.rtol, atol=0):
-            raise ValueError("Cannot compute a single value for the Tc if "
-                             "there are multiple values for the gap energy.")
+            log.warning("The gap energy varies significantly over the stack. "
+                        "The average value was used for the tc.")
         gap = gap.mean()
 
         tc = gap * reduced_delta_bcs(self.t[0], approx=True) / (BCS * k)
