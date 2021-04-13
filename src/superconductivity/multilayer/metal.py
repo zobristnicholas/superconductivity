@@ -1,7 +1,7 @@
 import pickle
 import numpy as np
-from scipy.constants import e
 from scipy.special import digamma
+from scipy.constants import e, k, hbar
 
 
 class Metal:
@@ -32,19 +32,6 @@ class Metal:
         self.rho = rho  # resistivity
         self.t = t  # temperature
 
-        # Define computation parameters.
-        self.z_grid = 5  # position grid points
-        self.e_grid = 1000  # energy grid points
-
-        # Initialize the solution grid placeholders.
-        self.z = np.linspace(0.0, self.d, self.e_grid)
-        # There is no natural energy scale for a simple metal.
-        self.e = np.linspace(0.0, 1.0, self.e_grid)
-        self.order = None
-        self.mtheta = None
-        self.theta = None
-        self.gap = None
-
         # The diffusion constant may be specified or derived from the
         # resistivity and the density of states. We save n0 or compute it
         # from the diffusion constant even though it won't be used for
@@ -58,6 +45,20 @@ class Metal:
         else:
             self.dc = dc
             self.n0 = 1 / (self.rho * self.dc * e**2)
+
+        # The coherence length of Cooper pairs in a normal metal is
+        # temperature dependent. (doi:10.1103/PhysRevLett.76.4026)
+        self.xi = np.sqrt(hbar * self.dc / (2 * np.pi * k * self.t))
+
+        # Initialize the solution grid placeholders.
+        self.z = np.linspace(0.0, self.d, max(10, int(10 * self.d / self.xi)))
+        self.e = np.concatenate(
+            [np.linspace(0.0, 8 * k * self.t, 2000),
+             np.linspace(8 * k * self.t, 60 * k * self.t, 1001)[1:]])
+        self.order = None
+        self.mtheta = None
+        self.theta = None
+        self.gap = None
 
     def to_pickle(self, file_name):
         """Save the class instance to a pickle file."""
@@ -83,16 +84,16 @@ class Metal:
         grid locations.
         """
         # Initialize the Matsubara energies and pair angles.
-        self.mtheta = np.zeros((1, self.z_grid))
+        self.mtheta = np.zeros((1, self.z.size))
 
         # Initialize the order parameter.
-        self.order = np.zeros(self.z_grid)
+        self.order = np.zeros(self.z.size)
 
         # Initialize the gap energy.
         self.gap = self.order
 
         # Initialize the pair angle.
-        self.theta = np.zeros((self.e_grid, self.z_grid))
+        self.theta = np.zeros((self.e.size, self.z.size))
 
     def update_order(self):
         """
@@ -103,5 +104,5 @@ class Metal:
         # order parameter. In a normal metal, the interaction potential is
         # zero, so the order parameter is always zero. We don't need to
         # update it here unless it hasn't been initialized.
-        if self.order is None:
-            self.order = np.zeros(self.z_grid)
+        if self.order is None or self.order.size != self.z.size:
+            self.order = np.zeros(self.z.size)

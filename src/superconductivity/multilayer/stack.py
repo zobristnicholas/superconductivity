@@ -33,6 +33,7 @@ class Stack:
             number of layers.
     """
     def __init__(self, layers, boundaries):
+        # Coerce the inputs into lists and check them.
         layers = cast_to_list(layers)
         boundaries = cast_to_list(boundaries)
         if len(boundaries) != len(layers) - 1:
@@ -41,19 +42,7 @@ class Stack:
         self.layers = [copy.deepcopy(m) for m in layers]  # from bottom to top
         self.boundaries = boundaries
         self.tc = None  # The stack's Tc is unknown until update_tc() is called
-
-        # Update the energy scale with which to normalize the calculations.
-        self._update_scale()
-
-        # Set up the default grid for the calculations.
-        self._update_grid()
-
-        # Initialize all of the layers in their bulk state.
-        for layer in self.layers:
-            layer.initialize_bulk()
-
-        # Update the material dependent arguments to the BVP solver.
-        self._update_args()
+        self._e = None  # Set by the self.e setter.
 
         # Define computation parameters.
         self.rtol = 1e-8  # relative convergence tolerance
@@ -66,6 +55,33 @@ class Stack:
         # Limit the maximum number of subintervals that the BVP solver can use
         # to this value.
         self.max_subintervals = 10000
+
+        # Update the energy scale with which to normalize the calculations.
+        tcs = [m.tc for m in self.layers if isinstance(m, Superconductor)]
+        self.scale = np.pi * k * max(tcs) if tcs else 1
+
+        # Set the z grid.
+        start, stop = [], []
+        for layer in self.layers:
+            start.append(sum(stop[-1:]))
+            stop.append(layer.d + sum(stop[-1:]))
+            layer.z = np.linspace(start[-1], stop[-1], layer.z.size)
+        self.z = np.concatenate([m.z for m in self.layers])
+
+        # Set the interface indices for the z grid.
+        self.interfaces = np.nonzero(self.z == np.roll(self.z, 1))[0]
+        self.interfaces = np.append(0, self.interfaces)
+        self.interfaces = np.append(self.interfaces, len(self.z))
+
+        # Set the energy grid.
+        energies = np.concatenate(
+            [np.linspace(0.0, 4 * BCS / np.pi * self.scale, 2000),
+             np.linspace(4 * BCS / np.pi * self.scale, 30 * BCS / np.pi *
+                         self.scale, 1001)[1:]])
+        self.e = energies  # setter initializes layers with bulk properties
+
+        # Update the material dependent arguments to the BVP solver.
+        self._update_args()
 
     @property
     def d(self):
@@ -93,6 +109,18 @@ class Stack:
                 layer.t = temperatures
                 layer.initialize_bulk()
 
+    @property
+    def e(self):
+        """The energy grid for the calculation."""
+        return self._e
+
+    @e.setter
+    def e(self, energies):
+        self._e = energies
+        for layer in self.layers:
+            layer.e = self.e
+            layer.initialize_bulk()
+
     def to_pickle(self, file_name):
         """Save the class instance to a pickle file."""
         with open(file_name, "wb") as f:
@@ -110,32 +138,6 @@ class Stack:
             raise TypeError(f"{file_name} does not contain the correct class.")
         log.info(f"Loaded {cls} from '{file_name}'.")
         return obj
-
-    def add_top(self, layer, boundary):
-        """
-        Add a layer to the top of the stack. The boundary term should be
-        referenced to the resistivity and coherence length of the layer
-        below. Using this method will reset the solution grid to the
-        default settings.
-        """
-        self.layers.append(layer)
-        self.boundaries.append(boundary)
-        self._update_scale()
-        self._update_grid()
-        self._update_args()
-
-    def add_bottom(self, layer, boundary):
-        """
-        Add a layer to the bottom of the stack. The boundary term should
-        be referenced to the resistivity and coherence length of the
-        layer being added. Using this method will reset the solution
-        grid to the default settings.
-        """
-        self.layers.insert(0, layer)
-        self.boundaries.insert(0, boundary)
-        self._update_scale()
-        self._update_grid()
-        self._update_args()
 
     def update(self):
         """
@@ -518,40 +520,8 @@ class Stack:
                       tick_kwargs=tick_kwargs, tighten=tighten)
         return axes
 
-    def _update_scale(self):
-        tcs = [m.tc for m in self.layers if isinstance(m, Superconductor)]
-        self.scale = np.pi * k * max(tcs) if tcs else 1
-
-    def _update_grid(self):
-        # Set the z grid.
-        start, stop = [], []
-        for layer in self.layers:
-            start.append(sum(stop[-1:]))
-            stop.append(layer.d + sum(stop[-1:]))
-            layer.z = np.linspace(start[-1], stop[-1], layer.z_grid)
-        self.z = np.concatenate([m.z for m in self.layers])
-
-        # Set the interface indices for the z grid.
-        self.interfaces = np.nonzero(self.z == np.roll(self.z, 1))[0]
-        self.interfaces = np.append(0, self.interfaces)
-        self.interfaces = np.append(self.interfaces, len(self.z))
-
-        if self.interfaces.size != len(self.layers) + 1:
-            raise AttributeError("The position grid does not have the "
-                                 "correct number of layers.")
-
-        # Set the energy grid.
-        if any([m.e_grid != self.layers[0].e_grid for m in self.layers]):
-            raise AttributeError("All layers must have the same E_GRID "
-                                 "constant.")
-        energies = np.linspace(0, 2 * self.scale, self.layers[0].e_grid)
-        self.e = energies
-        for layer in self.layers:
-            layer.e = self.e
-
     def _update_args(self):
-        # update arguments to the bvp solver that only change when a new
-        # material is added to the stack.
+        # update arguments to the bvp solver that never change
         d = np.array([layer.d for layer in self.layers])
         z = np.empty(self.z.shape)
         for i in range(len(self.layers)):

@@ -52,8 +52,9 @@ class Superconductor(Metal):
         # diffusion constant and the zero temperature gap energy.
         self.xi = np.sqrt(BCS * hbar * self.dc / (2 * np.pi * self.delta0))
 
-        # Rescale the energy to a more valid range.
-        self.e *= 2 * np.pi * k * self.tc
+        # Make more appropriate energy and position grids.
+        self.z = np.linspace(0.0, self.d, max(10, int(10 * self.d / self.xi)))
+        self.e *= (BCS * self.tc / self.t / 2)
 
     @property
     def t(self):
@@ -84,7 +85,7 @@ class Superconductor(Metal):
         self.update_order()
 
         # Initialize the pair angle.
-        self.theta = np.empty((self.e_grid, self.z_grid), dtype=complex)
+        self.theta = np.empty((self.e.size, self.z.size), dtype=complex)
         zero = (self.e == 0)
         self.theta[~zero, :] = np.arctan(1j * self.gap
                                          / self.e[~zero, np.newaxis])
