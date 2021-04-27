@@ -61,6 +61,8 @@ class Stack:
         self.scale = np.pi * k * max(tcs) if tcs else 1
 
         # Set the z grid.
+        if len(self.layers) == 1:  # set to the smallest grid possible
+            self.layers[0].z = np.array([0, self.layers[0].d])
         start, stop = [], []
         for layer in self.layers:
             start.append(sum(stop[-1:]))
