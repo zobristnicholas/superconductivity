@@ -10,7 +10,8 @@ from superconductivity.multilayer.stack import Stack
 def complex_conductivity(stacks, frequencies, temperatures=None, update=True,
                          squeeze=True):
     """
-    Compute the complex conductivity at each z grid point in a stack.
+    Compute the complex conductivity (normalized to the normal state
+    conductivity) at each z grid point in a stack.
 
     Args:
         stacks: iterable of superconductivity.multilayer.Stack
@@ -62,13 +63,26 @@ def complex_conductivity(stacks, frequencies, temperatures=None, update=True,
 
     frequencies = np.asarray(frequencies).ravel()
 
-    # Check that there are the right number of stacks and that each layer
-    # has the same temperature.
+    # Check that there are the right number of stacks
     if len(stacks) != temperatures.size:
         raise ValueError("'stacks' must be a single stack or a list of "
                          "stacks of the same length as 'temperatures'.")
 
     for i, stack in enumerate(stacks):
+        # If we are updating the stack, also use a better energy grid.
+        if update:
+            stack.e = BCS / np.pi * stack.scale * np.concatenate(
+                [np.linspace(0.0, 4.0, 4000),
+                 np.logspace(np.log10(4.0), np.log10(32.0), 8001)[1:]])
+        # Check that all stacks have the same energy grid.
+        if (stack.e != stacks[0].e).any():
+            raise ValueError("The given 'stacks' do not have consistent "
+                             "energy grids.")
+        # Check that all stacks have the same position grid.
+        if (stack.z != stacks[0].z).any():
+            raise ValueError("The given 'stacks' do not have consistent "
+                             "position grids.")
+        # Check that all stacks have the right temperature.
         if (stack.t != temperatures[i]).any():
             raise ValueError("The given 'stacks' do not have consistent "
                              "temperatures.")

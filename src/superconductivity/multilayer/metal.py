@@ -52,9 +52,9 @@ class Metal:
 
         # Initialize the solution grid placeholders.
         self.z = np.linspace(0.0, self.d, max(10, int(10 * self.d / self.xi)))
-        self.e = np.concatenate(
-            [np.linspace(0.0, 8 * k * self.t, 2000),
-             np.linspace(8 * k * self.t, 60 * k * self.t, 1001)[1:]])
+        self.e = 2 * k * self.t * np.concatenate(
+            [np.linspace(0.0, 4.0, 2000),
+             np.logspace(np.log10(8.0), np.log10(32.0), 4001)[1:]])
         self.order = None
         self.mtheta = None
         self.theta = None
