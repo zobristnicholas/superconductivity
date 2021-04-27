@@ -1,17 +1,20 @@
 import copy
 import numpy as np
-from scipy.constants import h
+from scipy.constants import h, mu_0, epsilon_0
 from scipy.interpolate import PchipInterpolator
 
+from superconductivity.utils import BCS
 from superconductivity.fermi_functions import fermi
 from superconductivity.multilayer.stack import Stack
 
+Z0 = np.sqrt(mu_0 / epsilon_0)  # free space impedance
 
-def complex_conductivity(stacks, frequencies, temperatures=None, update=True,
-                         squeeze=True):
+
+def complex_conductivity(stacks, frequencies, temperatures=None,
+                         norm=True, update=True, squeeze=True):
     """
-    Compute the complex conductivity (normalized to the normal state
-    conductivity) at each z grid point in a stack.
+    Compute the (normalized) complex conductivity at each z grid point
+    in a stack.
 
     Args:
         stacks: iterable of superconductivity.multilayer.Stack
@@ -29,6 +32,10 @@ def complex_conductivity(stacks, frequencies, temperatures=None, update=True,
             the temperatures at which to evaluate the conductivity. It
             defaults to None, and the temperatures are determined by the
             temperatures of the stacks.
+        norm: boolean
+            The default is True and the conductivity is reported
+            normalized to the normal state conductivity. If False, the
+            complex conductivity is reported in units of Ohms^-1 m^-1.
         update: boolean
             The default is True, and the density of states will be
             computed in this function. To skip this computation, set
@@ -174,8 +181,79 @@ def complex_conductivity(stacks, frequencies, temperatures=None, update=True,
                 # Fill the output array.
                 sigma[it, iv, z_start:z_stop] = sigma1 - 1j * sigma2
 
-    # Remove extra dimensions
+                # Give sigma units if we aren't normalizing it.
+                if not norm:
+                    sigma[it, iv, z_start:z_stop] /= layer.rho
+
+    # Remove the extra dimensions.
     if squeeze:
         sigma = sigma.squeeze()
 
     return sigma
+
+
+def surface_impedance(stacks, frequencies, temperatures=None, update=True,
+                      squeeze=True):
+    # Compute the complex conductivity.
+    sigma = complex_conductivity(stacks, frequencies, norm=False,
+                                 temperatures=temperatures, update=update,
+                                 squeeze=False)  # temp x freq x pos
+
+    # Make sure the stacks argument is a list.
+    if isinstance(stacks, Stack):
+        stacks = [stacks]
+
+    # The complex conductivity has a discontinuity at layer boundaries. We
+    # need to replace the double valued function by its average at each
+    # boundary.
+    z_list = [stacks[0].layers[0].z]
+    z_size = stacks[0].layers[0].z.size
+    sigma_list = [sigma[:, :, :z_size]]
+    for layer in stacks[0].layers[1:]:
+        z_list.append(layer.z[1:])
+        sigma_list.append(sigma[:, :, z_size: layer.z.size + z_size])
+        z_size += layer.z.size
+    z = np.hstack(z_list)
+
+    # The double z positions have been removed. Now we average sigma at the
+    # boundary and create a new array with the same position grid as z.
+    avg_list = []
+    for i, s in enumerate(sigma_list[1:]):
+        avg_list.append((sigma_list[i][:, :, -1] + s[:, :, 0]) / 2)
+    sigma = np.concatenate(
+        [sigma_list[0][:, :, :-1]]
+        + [item for tup in zip(avg_list, sigma_list[1:])
+           for item in (tup[0][:, :, np.newaxis], tup[1][:, :, 1:-1])]
+        + [sigma_list[-1][:, :, -1:]], axis=-1)
+
+    # We need sigma at the midpoint of the position grid for the algorithm
+    # so we average one more time.
+    sigma = (sigma[:, :, :-1] + sigma[:, :, 1:]) / 2
+    dz = np.diff(z)
+
+    # The abcd matrices for the stack can now be computed.
+    ones = np.ones(sigma.shape)
+    f = np.broadcast_to(frequencies[np.newaxis, :, np.newaxis], sigma.shape)
+    abcd = np.array([[ones, 2j * np.pi * f * mu_0 * dz],
+                     [sigma * dz, ones]])
+    abcd = np.moveaxis(abcd, [0, 1], [-2, -1])  # (temp x freq x pos x 2 x 2)
+
+    # We multiply the abcd matrices together to get the surface impedance.
+    zs_v = np.array([[Z0], [1]])
+    for i in range(abcd.shape[2]):  # loop over positions
+        zs_v = abcd[:, :, i, :, :] @ zs_v  # (temp x freq x 2 x 1)
+    zs_top = zs_v[:, :, 0, 0] / zs_v[:, :, 1, 0]  # (temp x freq)
+
+    # Multiplying in the opposite order gives the impedance on the other
+    # surface.
+    zs_v = np.array([[Z0], [1]])
+    for i in reversed(range(abcd.shape[2])):  # loop over positions
+        zs_v = abcd[:, :, i, :, :] @ zs_v  # (temp x freq x 2 x 1)
+    zs_bottom = zs_v[:, :, 0, 0] / zs_v[:, :, 1, 0]  # (temp x freq)
+
+    # Remove the extra dimensions.
+    if squeeze:
+        zs_top = zs_top.squeeze()
+        zs_bottom = zs_bottom.squeeze()
+
+    return zs_top, zs_bottom
