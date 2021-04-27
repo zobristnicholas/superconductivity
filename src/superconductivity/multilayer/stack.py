@@ -45,7 +45,7 @@ class Stack:
         self._e = None  # Set by the self.e setter.
 
         # Define computation parameters.
-        self.rtol = 1e-8  # relative convergence tolerance
+        self.rtol = 1e-4  # relative convergence tolerance
         self.max_iterations = 100  # maximum number of iterations to converge
         self.speedup = 10  # Do a Steffensen iteration every <SPEEDUP> times.
         self.threshold = 1e-3  # DOS threshold for determining the gap energy
@@ -218,8 +218,9 @@ class Stack:
                 # Solve the diffusion equation at the Matsubara energies.
                 theta, info = solve_imaginary(
                     wn / self.scale, self.z, y_guess, self.order / self.scale,
-                    self.boundaries, self.interfaces, self.rtol,
-                    self._get_threads(), self.max_subintervals, **self.kwargs)
+                    self.boundaries if self.boundaries else [0],
+                    self.interfaces, self.rtol, self._get_threads(),
+                    self.max_subintervals, **self.kwargs)
                 raise_bvp(info)
 
                 # Collect the results into the different layer objects.
@@ -257,8 +258,9 @@ class Stack:
         # Solve the diffusion equation at the requested energies.
         theta, info = solve_real(
             self.e / self.scale, self.z, y_guess, self.order / self.scale,
-            self.boundaries, self.interfaces, self.rtol, self._get_threads(),
-            self.max_subintervals, **self.kwargs)
+            self.boundaries if self.boundaries else [0], self.interfaces,
+            self.rtol, self._get_threads(), self.max_subintervals,
+            **self.kwargs)
         raise_bvp(info)
 
         # Collect the results into the different layer objects.
@@ -288,8 +290,8 @@ class Stack:
         def find_gap(scaled_energy, layer_index, position_index):
             theta, info = solve_real(
                 scaled_energy, self.z, y_guess, order / self.scale,
-                self.boundaries, self.interfaces, self.rtol, 1,
-                self.max_subintervals, **self.kwargs)
+                self.boundaries if self.boundaries else [0], self.interfaces,
+                self.rtol, 1, self.max_subintervals, **self.kwargs)
             try:
                 raise_bvp(info)
             # If there's an error, check to see if the order parameter is
@@ -463,6 +465,8 @@ class Stack:
                 location = [['c'] for _ in range(n)]
             elif location.lower() == 'mixed':
                 location = ['b'] + [['c'] for _ in range(n - 2)] + ['t']
+                if n == 1:
+                    location = [location]
             else:
                 raise ValueError(f"'{location}' is not a valid location.")
 
