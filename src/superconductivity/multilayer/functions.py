@@ -23,7 +23,8 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
             given, the temperatures keyword argument can be used to
             broadcast the geometry to more than one temperature. If a
             stack is given outside of an iterable or the broadcasting is
-            used, the stack is copied first.
+            used, the stack is copied first. Otherwise, the stack is updated
+            inplace.
         frequencies: iterable of floats
             The frequencies in Hz at which to evaluate the conductivity.
             All inputs are immediately coerced into numpy arrays.
@@ -194,6 +195,47 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
 
 def surface_impedance(stacks, frequencies, temperatures=None, update=True,
                       squeeze=True):
+    """
+    Compute the surface impedance at the bottom and top of the stack.
+
+    Args:
+        stacks: iterable of superconductivity.multilayer.Stack
+            Stack classes defining the geometry of the multilayer. There
+            should be one for each temperature. If a single stack is
+            given, the temperatures keyword argument can be used to
+            broadcast the geometry to more than one temperature. If a
+            stack is given outside of an iterable or the broadcasting is
+            used, the stack is copied first. Otherwise, the stack is updated
+            inplace.
+        frequencies: iterable of floats
+            The frequencies in Hz at which to evaluate the surface impedance.
+            All inputs are immediately coerced into numpy arrays.
+        temperatures: iterable of floats
+            If only one stack is provided, this keyword argument sets
+            the temperatures at which to evaluate the surface impedance. It
+            defaults to None, and the temperatures are determined by the
+            temperatures of the stacks.
+        update: boolean
+            The default is True, and the density of states will be
+            computed in this function. To skip this computation, set
+            this keyword argument to False.
+        squeeze: boolean
+            The default is True and singleton dimensions in the output
+            array are removed.
+
+    Returns:
+        zs_bottom: numpy.ndarray
+            The surface impedance at the bottom of the stack. The axes
+            correspond to (temperature, frequency, position). If any
+            dimension has size 1 and the keyword argument 'squeeze' is
+            True, it is removed.
+        zs_top: numpy.ndarray
+            The surface impedance at the top of the stack. The axes
+            correspond to (temperature, frequency, position). If any
+            dimension has size 1 and the keyword argument 'squeeze' is
+            True, it is removed.
+
+    """
     # Compute the complex conductivity.
     sigma = complex_conductivity(stacks, frequencies, norm=False,
                                  temperatures=temperatures, update=update,
@@ -256,4 +298,4 @@ def surface_impedance(stacks, frequencies, temperatures=None, update=True,
         zs_top = zs_top.squeeze()
         zs_bottom = zs_bottom.squeeze()
 
-    return zs_top, zs_bottom
+    return zs_bottom, zs_top
