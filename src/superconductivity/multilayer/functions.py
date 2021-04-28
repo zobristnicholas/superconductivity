@@ -79,9 +79,10 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
     for i, stack in enumerate(stacks):
         # If we are updating the stack, also use a better energy grid.
         if update:
+            hf = h * frequencies.max() / BCS * np.pi / stack.scale
             stack.e = BCS / np.pi * stack.scale * np.concatenate(
                 [np.linspace(0.0, 4.0, 4000),
-                 np.logspace(np.log10(4.0), np.log10(32.0), 8001)[1:]])
+                 np.logspace(np.log10(4.0), np.log10(32.0 + hf), 8001)[1:]])
         # Check that all stacks have the same energy grid.
         if (stack.e != stacks[0].e).any():
             raise ValueError("The given 'stacks' do not have consistent "
@@ -99,22 +100,16 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
     sigma = np.empty((temperatures.size, frequencies.size, stacks[0].z.size),
                      dtype=complex)
 
-    # Extract the energy vector adding two points at either end to make
-    # sure the PCHIP interpolation extrapolates to a constant above max_e.
-    max_e = stacks[0].e.max() * 10
-    e = np.hstack([-2 * max_e, -max_e, -stacks[0].e[:0:-1], stacks[0].e,
-                   max_e, 2 * max_e])
+    # Get the maximum energy and frequency for the calculation
+    max_e = stacks[0].e.max()
+    max_hf = h * frequencies.max()
 
-    # Create a fermi function that returns the right shape and also is
-    # constant above max_e to maintain the constant PCHIP extrapolation.
+    # Extract the energy vector making it extend to negative energies.
+    e = np.hstack([-stacks[0].e[:0:-1], stacks[0].e])
+
+    # Create a fermi function that returns the right shape.
     def f(en, temp):
-        logic = (np.abs(en) >= max_e)
-        if logic.any():
-            energy = en.copy()
-            energy[logic] = np.sign(en[logic]) * max_e
-        else:
-            energy = en
-        return fermi(energy, temp, units='J')[:, np.newaxis]
+        return fermi(en, temp, units='J')[:, np.newaxis]
 
     # Loop over the given temperatures.
     for it, t in enumerate(temperatures):
@@ -128,26 +123,15 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
             z_start = z_stop
             z_stop = z_start + layer.z.size
             # Get the complex density of states and density of pairs
-            # data at all energies, appending the large energy limit to
-            # each array.
-            ones = np.ones((2, layer.theta.shape[1]))
-            zeros = np.zeros_like(ones)
-            dos_r = np.concatenate([ones,
-                                    np.cos(layer.theta[:0:-1, :]).real,
-                                    np.cos(layer.theta).real,
-                                    ones], axis=0)
-            dos_i = np.concatenate([zeros,
-                                    -np.cos(layer.theta[:0:-1, :]).imag,
-                                    np.cos(layer.theta).imag,
-                                    zeros], axis=0)
-            dop_r = np.concatenate([zeros,
-                                    (1j * np.sin(layer.theta[:0:-1, :])).real,
-                                    (-1j * np.sin(layer.theta)).real,
-                                    zeros], axis=0)
-            dop_i = np.concatenate([zeros,
-                                    (-1j * np.sin(layer.theta[:0:-1, :])).imag,
-                                    (-1j * np.sin(layer.theta)).imag,
-                                    zeros], axis=0)
+            # data at all energies.
+            dos_r = np.concatenate([np.cos(layer.theta[:0:-1, :]).real,
+                                    np.cos(layer.theta).real], axis=0)
+            dos_i = np.concatenate([-np.cos(layer.theta[:0:-1, :]).imag,
+                                    np.cos(layer.theta).imag], axis=0)
+            dop_r = np.concatenate([(1j * np.sin(layer.theta[:0:-1, :])).real,
+                                    (-1j * np.sin(layer.theta)).real], axis=0)
+            dop_i = np.concatenate([(-1j * np.sin(layer.theta[:0:-1, :])).imag,
+                                    (-1j * np.sin(layer.theta)).imag], axis=0)
 
             # Create PCHIP functions from the data arrays.
             dos_r = PchipInterpolator(e, dos_r, extrapolate=True, axis=0)
@@ -171,13 +155,14 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
                                                extrapolate=True, axis=0)
 
                 # Compute the complex conductivity at this frequency and
-                # temperature for this layer in the stack. We choose an
-                # arbitrarily large value for infinity since all of the
-                # interesting information in the integrand should be close
-                # to the gap energy.
-                inf = max_e
-                sigma1 = integrand1.integrate(-inf, inf)
-                sigma2 = integrand2.integrate(-inf, inf)
+                # temperature for this layer in the stack. We choose the
+                # largest valid value for infinity. All of the interesting
+                # information in the integrand should be close to the gap
+                # energy anyways.
+                pos_inf = max_e - max_hf
+                neg_inf = -max_e - max_hf
+                sigma1 = integrand1.integrate(neg_inf, pos_inf)
+                sigma2 = integrand2.integrate(neg_inf, pos_inf)
 
                 # Fill the output array.
                 sigma[it, iv, z_start:z_stop] = sigma1 - 1j * sigma2
