@@ -85,9 +85,8 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
         # If we are updating the stack, also use a better energy grid.
         if update:
             hf = h * frequencies.max() / BCS * np.pi / stack.scale
-            stack.e = BCS / np.pi * stack.scale * np.concatenate(
-                [np.linspace(0.0, 4.0, 4000),
-                 np.logspace(np.log10(4.0), np.log10(32.0 + hf), 8001)[1:]])
+            prefactor = BCS / np.pi * stack.scale
+            stack.e = prefactor * np.linspace(0.0, 64.0 + hf, 20000)
         # Check that all stacks have the same energy grid.
         if (stack.e != stacks[0].e).any():
             raise ValueError("The given 'stacks' do not have consistent "
