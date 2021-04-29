@@ -1,4 +1,5 @@
 import copy
+import logging
 import numpy as np
 from scipy.constants import h, mu_0, epsilon_0
 from scipy.interpolate import PchipInterpolator
@@ -8,6 +9,9 @@ from superconductivity.fermi_functions import fermi
 from superconductivity.multilayer.stack import Stack
 
 Z0 = np.sqrt(mu_0 / epsilon_0)  # free space impedance
+
+log = logging.getLogger(__name__)
+log.addHandler(logging.NullHandler())
 
 
 def complex_conductivity(stacks, frequencies, temperatures=None,
@@ -52,6 +56,7 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
             dimension has size 1 and the keyword argument 'squeeze' is
             True, it is removed.
     """
+    log.info("Computing the complex conductivity.")
     # Coerce the inputs into the right form.
     if isinstance(stacks, Stack):
         stacks = [copy.deepcopy(stacks)]
@@ -181,7 +186,7 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
 def surface_impedance(stacks, frequencies, temperatures=None, update=True,
                       squeeze=True):
     """
-    Compute the surface impedance at the bottom and top of the stack.
+    Compute the surface impedance [Ohms] at the bottom and top of the stack.
 
     Args:
         stacks: iterable of superconductivity.multilayer.Stack
@@ -221,6 +226,7 @@ def surface_impedance(stacks, frequencies, temperatures=None, update=True,
             True, it is removed.
 
     """
+    log.info("Computing the surface impedance.")
     # Compute the complex conductivity.
     sigma = complex_conductivity(stacks, frequencies, norm=False,
                                  temperatures=temperatures, update=update,
