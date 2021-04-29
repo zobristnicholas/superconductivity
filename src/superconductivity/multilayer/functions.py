@@ -138,10 +138,11 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
                                     (-1j * np.sin(layer.theta)).imag], axis=0)
 
             # Create PCHIP functions from the data arrays.
-            dos_r = PchipInterpolator(e, dos_r, extrapolate=True, axis=0)
-            dos_i = PchipInterpolator(e, dos_i, extrapolate=True, axis=0)
-            dop_r = PchipInterpolator(e, dop_r, extrapolate=True, axis=0)
-            dop_i = PchipInterpolator(e, dop_i, extrapolate=True, axis=0)
+            with np.errstate(invalid="ignore"):
+                dos_r = PchipInterpolator(e, dos_r, extrapolate=True, axis=0)
+                dos_i = PchipInterpolator(e, dos_i, extrapolate=True, axis=0)
+                dop_r = PchipInterpolator(e, dop_r, extrapolate=True, axis=0)
+                dop_i = PchipInterpolator(e, dop_i, extrapolate=True, axis=0)
 
             # Loop over the given frequencies.
             for iv, v in enumerate(h * frequencies):
@@ -153,10 +154,11 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
                     dos_r(e) * dos_i(e + v) + dop_r(e) * dop_i(e + v)) / v
 
                 # Turn them into functions by PCHIP interpolation.
-                integrand1 = PchipInterpolator(e, integrand1,
-                                               extrapolate=True, axis=0)
-                integrand2 = PchipInterpolator(e, integrand2,
-                                               extrapolate=True, axis=0)
+                with np.errstate(invalid="ignore"):
+                    integrand1 = PchipInterpolator(e, integrand1,
+                                                   extrapolate=True, axis=0)
+                    integrand2 = PchipInterpolator(e, integrand2,
+                                                   extrapolate=True, axis=0)
 
                 # Compute the complex conductivity at this frequency and
                 # temperature for this layer in the stack. We choose the
