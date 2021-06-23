@@ -150,9 +150,9 @@ class Superconductor(Metal):
                 return np.cos(th).real - self.threshold
 
             dos = np.cos(self.theta[:, 0]).real
-            max_e = self.e[dos > self.threshold].min() / self.order[0]
-            min_e = self.e[dos < self.threshold].max() / self.order[0]
             try:
+                max_e = self.e[dos > self.threshold].min() / self.order[0]
+                min_e = self.e[dos < self.threshold].max() / self.order[0]
                 self.gap[:] = brentq(find_gap, min_e, max_e) * self.order[0]
             except ValueError:  # the bounds didn't give opposite signs
                 max_e = np.max(self.e) / self.order[0]
