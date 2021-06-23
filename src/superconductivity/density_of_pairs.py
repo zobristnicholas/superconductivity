@@ -1,5 +1,6 @@
 import numpy as np
 import numba as nb
+from superconductivity.density_of_states import usadel_pair_angle
 
 
 def dop_bcs(en, delta, real=True):
@@ -31,6 +32,7 @@ def dop_dynes(en, delta, gamma, real=True):
     """
     Compute the density of pairs for a Dynes superconductor. Functional
     form from Herman et al. Phys. Rev. B, 96, 1, 2017.
+    (doi:10.1103/PhysRevB.96.014509)
     Parameters
     ----------
     en: float, numpy.ndarray
@@ -52,6 +54,34 @@ def dop_dynes(en, delta, gamma, real=True):
     en = np.atleast_1d(en)
     dop = np.empty(en.shape, dtype=np.complex)
     _dop(dop, en, delta, gamma, real=real)
+    return dop.real if real else dop.imag
+
+
+def dop_usadel(en, delta, alpha, real=True):
+    """
+    Compute the density of pairs for an Usadel superconductor. Functional
+    form from Coumou et al. Phys. Rev. B, 88, 18, 2013.
+    (doi:10.1103/PhysRevB.88.180505)
+    Parameters
+    ----------
+    en: float, numpy.ndarray
+        Energy relative to the fermi energy (E-Ef) in any units.
+    delta: float
+        Superconducting gap energy in units of en.
+    alpha: float
+        The disorder-dependent pair-breaking parameter in units of en.
+    real: boolean (optional)
+        If False, the imaginary part of the complex valued function is
+        returned. If True, the real part of the complex valued function
+        is returned. The real part is the density of states. The default is
+        True.
+    Returns
+    -------
+    dos: numpy.ndarray
+        density of states as a function of en
+    """
+    theta = usadel_pair_angle(en, delta, alpha)
+    dop = np.sin(theta)
     return dop.real if real else dop.imag
 
 
