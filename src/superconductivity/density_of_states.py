@@ -89,11 +89,14 @@ def usadel_pair_angle(en, delta, alpha):
     shape = en.shape
     en = en.ravel() / delta
     alpha = alpha / delta
-    x0 = np.full(en.size * 2, np.pi / 4)
+    # Compute the guess
     if np.iscomplex(en).any():
-        x0[en.size:] = 0
+        x0 = np.full(en.size, np.pi / 4)
+    else:
+        x0 = np.full(en.size * 2, np.pi / 4)
+
     sol = root(_usadel, x0, args=(en, 1, alpha), method='krylov')
-    if sol.x[en.size:].any():
+    if sol.x.size > en.size:
         theta = sol.x[:en.size] + 1j * sol.x[en.size:]
         # fix small numerical errors that aren't physical
         bad = (theta.real > np.pi / 2)
@@ -104,16 +107,19 @@ def usadel_pair_angle(en, delta, alpha):
         still_bad = (theta.real > np.pi / 2)
         theta[still_bad] = np.pi / 2 + 1j * theta[still_bad].imag
     else:
-        theta = sol.x[:en.size]
+        theta = sol.x
     return theta.reshape(shape)
 
 
-# @nb.njit(cache=True)
+@nb.njit(cache=True)
 def _usadel(theta, en, delta, alpha):
-    th = theta[:int(theta.size // 2)] + 1j * theta[int(theta.size // 2):]
+    if theta.size > en.size:
+        th = theta[:int(theta.size // 2)] + 1j * theta[int(theta.size // 2):]
+    else:
+        th = theta + 0j
     fc = (1j * en * np.sin(th) + delta * np.cos(th)
           - alpha * np.sin(th) * np.cos(th))
-    f = np.concatenate((fc.real, fc.imag))
+    f = np.concatenate((fc.real, fc.imag)) if theta.size > en.size else fc.real
     return f
 
 
