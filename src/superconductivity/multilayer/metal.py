@@ -52,9 +52,7 @@ class Metal:
 
         # Initialize the solution grid placeholders.
         self.z = np.linspace(0.0, self.d, max(10, int(10 * self.d / self.xi)))
-        self.e = 2 * k * self.t * np.concatenate(
-            [np.linspace(0.0, 4.0, 2000),
-             np.logspace(np.log10(8.0), np.log10(32.0), 4001)[1:]])
+        self.e = 2 * k * self.t * np.linspace(0.0, 4.0, 2000)
         self.order = None
         self.mtheta = None
         self.theta = None
@@ -90,7 +88,7 @@ class Metal:
         self.order = np.zeros(self.z.size)
 
         # Initialize the gap energy.
-        self.gap = self.order
+        self.gap = np.zeros(self.z.size)
 
         # Initialize the pair angle.
         self.theta = np.zeros((self.e.size, self.z.size))

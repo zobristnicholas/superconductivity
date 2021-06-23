@@ -76,10 +76,7 @@ class Stack:
         self.interfaces = np.append(self.interfaces, len(self.z))
 
         # Set the energy grid.
-        energies = BCS / np.pi * self.scale * np.concatenate(
-            [np.linspace(0.0, 4.0, 2000),
-             np.logspace(np.log10(4.0), np.log10(32.0), 4001)[1:]])
-        self.e = energies  # setter initializes layers with bulk properties
+        self.e = BCS / np.pi * self.scale * np.linspace(0.0, 4.0, 2000)
 
         # Update the material dependent arguments to the BVP solver.
         self._update_args()
