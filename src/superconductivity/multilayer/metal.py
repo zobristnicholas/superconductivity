@@ -52,7 +52,7 @@ class Metal:
 
         # Initialize the solution grid placeholders.
         self.z = np.linspace(0.0, self.d, max(10, int(10 * self.d / self.xi)))
-        self.e = 2 * k * self.t * np.linspace(0.0, 4.0, 2000)
+        self.e = k * self.t * np.linspace(0.0, 4.0, 2000)
         self.order = None
         self.mtheta = None
         self.theta = None

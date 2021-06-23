@@ -66,7 +66,7 @@ class Superconductor(Metal):
 
         # Make more appropriate energy and position grids.
         self.z = np.linspace(0.0, self.d, max(10, int(10 * self.d / self.xi)))
-        self.e *= (BCS * self.tc / self.t / 2)
+        self.e *= (BCS * self.tc / self.t)
 
         # Define computation parameters for bulk computation when alpha != 0.
         self.rtol = 1e-4  # relative convergence tolerance

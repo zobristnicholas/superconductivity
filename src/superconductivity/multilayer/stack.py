@@ -58,7 +58,7 @@ class Stack:
 
         # Update the energy scale with which to normalize the calculations.
         tcs = [m.tc for m in self.layers if isinstance(m, Superconductor)]
-        self.scale = np.pi * k * max(tcs) if tcs else 1
+        self.scale = np.pi * k * max(tcs) if tcs else k * np.max(self.t)
 
         # Set the z grid.
         if len(self.layers) == 1:  # set to the smallest grid possible
@@ -76,7 +76,17 @@ class Stack:
         self.interfaces = np.append(self.interfaces, len(self.z))
 
         # Set the energy grid.
-        self.e = BCS / np.pi * self.scale * np.linspace(0.0, 4.0, 2000)
+        if tcs:
+            tcs.sort()
+            energy_list = []
+            for tc in tcs:
+                en = tc * np.linspace(0, 4.0, 2000)
+                if energy_list:
+                    en = en[en > energy_list[-1][-1]]  # take only largest
+                energy_list.append(en)
+            self.e = BCS * k * np.concatenate(energy_list)
+        else:
+            self.e = self.scale * np.linspace(0.0, 4.0, 2000)
 
         # Update the material dependent arguments to the BVP solver.
         self._update_args()
