@@ -146,7 +146,8 @@ class Superconductor(Metal):
 
             def find_gap(e):
                 en = e * self.order[0]
-                th = usadel_pair_angle(en, self.order[0], self.alpha)
+                th = usadel_pair_angle(en, self.order[0], self.alpha,
+                                       parallel=False)
                 return np.cos(th).real - self.threshold
 
             dos = np.cos(self.theta[:, 0]).real

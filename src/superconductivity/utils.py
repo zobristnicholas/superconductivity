@@ -1,3 +1,4 @@
+import signal
 import numpy as np
 from collections import OrderedDict
 
@@ -136,3 +137,30 @@ class RotatingDict(OrderedDict):
         while len(self) >= self.max_size:
             self.popitem(last=False)
         super().__setitem__(key, value)
+
+
+def initialize_worker():
+    """Initialize multiprocessing.pool worker to ignore keyboard interrupts."""
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
+def map_async_stoppable(pool, func, iterable, callback=None):
+    results = MapResult()
+    for item in iterable:
+        results.append(pool.apply_async(func, (item,), callback=callback))
+    return results
+
+
+class MapResult(list):
+    def get(self, *args, **kwargs):
+        results = []
+        for r in self:
+            if r.ready():
+                results.append(r.get(*args, **kwargs))
+            else:
+                results.append(None)
+        return results
+
+    def wait(self, timeout=None):
+        for r in self:
+            r.wait(timeout)
