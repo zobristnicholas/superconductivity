@@ -156,7 +156,10 @@ class Superconductor(Metal):
                 self.gap[:] = brentq(find_gap, min_e, max_e) * self.order[0]
             except ValueError:  # the bounds didn't give opposite signs
                 max_e = np.max(self.e) / self.order[0]
-                self.gap[:] = brentq(find_gap, 0, max_e) * self.order[0]
+                try:
+                    self.gap[:] = brentq(find_gap, 0, max_e) * self.order[0]
+                except ValueError:
+                    self.gap[:] = 0.
         log.debug("Bulk parameters initialized.")
 
     def update_order(self):
