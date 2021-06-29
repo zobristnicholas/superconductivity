@@ -2,8 +2,6 @@ import os
 import logging
 import numpy as np
 import numba as nb
-import multiprocessing as mp
-from functools import partial
 from scipy.optimize import root
 
 from superconductivity.utils import initialize_worker, map_async_stoppable
@@ -24,8 +22,8 @@ def dos_bcs(en, delta, real=True):
     real: boolean (optional)
         If False, the imaginary part of the complex valued function is
         returned. If True, the real part of the complex valued function
-        is returned. The real part is the density of states. The default is
-        True.
+        is returned. The real part is the density of states. The default
+        is True.
     Returns
     -------
     dos: numpy.ndarray
@@ -49,12 +47,13 @@ def dos_dynes(en, delta, gamma, real=True):
     delta: float
         Superconducting gap energy in units of en.
     gamma: float
-        Dynes parameter for broadening the density of states in units of en.
+        Dynes parameter for broadening the density of states in units of
+        en.
     real: boolean (optional)
         If False, the imaginary part of the complex valued function is
         returned. If True, the real part of the complex valued function
-        is returned. The real part is the density of states. The default is
-        True.
+        is returned. The real part is the density of states. The default
+        is True.
     Returns
     -------
     dos: numpy.ndarray
@@ -68,8 +67,8 @@ def dos_dynes(en, delta, gamma, real=True):
 
 def dos_usadel(en, delta, alpha, real=True):
     """
-    Compute the density of states for an Usadel superconductor. Functional
-    form from Coumou et al. Phys. Rev. B, 88, 18, 2013.
+    Compute the density of states for an Usadel superconductor.
+    Functional form from Coumou et al. Phys. Rev. B, 88, 18, 2013.
     (doi:10.1103/PhysRevB.88.180505)
     Parameters
     ----------
@@ -82,75 +81,61 @@ def dos_usadel(en, delta, alpha, real=True):
     real: boolean (optional)
         If False, the imaginary part of the complex valued function is
         returned. If True, the real part of the complex valued function
-        is returned. The real part is the density of states. The default is
-        True.
+        is returned. The real part is the density of states. The default
+        is True.
     Returns
     -------
     dos: numpy.ndarray
         density of states as a function of en
     """
-    theta = usadel_pair_angle(en, delta, alpha)
+    theta = usadel_pairing_angle(en, delta, alpha)
     dos = np.cos(theta)
     return dos.real if real else dos.imag
 
 
-def usadel_pair_angle(en, delta, alpha, parallel=None):
+def usadel_pairing_angle(en, delta, alpha):
+    """
+    Compute the superconducting pairing angle for an Usadel
+    superconductor. Functional form from Coumou et al. Phys. Rev. B, 88,
+    18, 2013. (doi:10.1103/PhysRevB.88.180505)
+        Parameters
+    ----------
+    en: float or complex, numpy.ndarray
+        Energy relative to the fermi energy (E-Ef) in any units. A
+        complex energy is interpreted as evaluating the usadel equation
+        along the complex axis (at the Matsubara frequencies).
+    delta: float
+        Superconducting gap energy in units of en.
+    alpha: float
+        The disorder-dependent pair-breaking parameter in units of en.
+    Returns
+    -------
+    theta: numpy.ndarray
+        The superconducting pairing angle as a function of en
+    """
     shape = np.array(en).shape
     en = np.array(en).ravel() / delta
     alpha = alpha / delta
 
     # At the imaginary Matsubara energies the Usadel equation is real.
     if np.iscomplex(en).any():
+        # The krylov method is faster than iterating over all of the
+        # energies for diagonal systems.
         x0 = np.full(en.size, np.pi / 4)
-        sol = root(_usadel, x0, args=(en, 1, alpha), method='krylov')
-        theta = sol.x
+        theta = root(_usadel, x0, args=(en, 1, alpha), method='krylov').x
     # At real energies the Usadel equation is complex.
     else:
-        if os.name == 'nt' or parallel is False:  # windows can't fork
-            x0 = np.full(en.size * 2, np.pi / 4)
-            sol = root(_usadel, x0, args=(en, 1, alpha), method='krylov')
-            theta = sol.x[:en.size] + 1j * sol.x[en.size:]
-        else:
-            n_cpu = mp.cpu_count() // 2
-            log.debug(f"Computing pair angle with {n_cpu} cores.")
+        # Since theta is complex, the system is no longer diagonal and it is
+        # faster to loop over each energy.
+        def find_root(e, a, guess):
+            e = np.atleast_1d(e)
+            # 'hybr' method is faster for small problems
+            s = root(_usadel, guess, args=(e, 1, a), method='hybr')
+            return s.x[0] + 1j * s.x[1]
 
-            with mp.get_context("fork").Pool(
-                    n_cpu, initializer=initialize_worker) as pool:
-                target = partial(_find_root, alpha=alpha)
-                results = map_async_stoppable(pool, target, en)
-                try:
-                    results.wait()
-                except KeyboardInterrupt as error:
-                    log.error("Keyboard Interrupt encountered: "
-                              "retrieving computed fits before exiting")
-                    pool.terminate()
-                    pool.join()
-                    raise error
-                finally:
-                    theta = np.empty(en.size, dtype=complex)
-                    for index, result in enumerate(results.get()):
-                        theta[index] = result
-                    log.debug("Retrieved results from parallel computation")
-
-            # fix small numerical errors that aren't physical
-            bad = (theta.real > np.pi / 2)
-            if bad.any():
-                x0 = np.full(en[bad].size * 2, np.pi / 4)
-                sol = root(_usadel, x0, args=(en[bad], 1, alpha),
-                           method='krylov')
-                theta[bad] = sol.x[:en[bad].size] + 1j * sol.x[en[bad].size:]
-            still_bad = (theta.real > np.pi / 2)
-            theta[still_bad] = np.pi / 2 + 1j * theta[still_bad].imag
-
+        x0 = np.full(2, np.pi / 4)
+        theta = np.array([find_root(e, alpha, x0) for e in en])
     return theta.reshape(shape)
-
-
-def _find_root(e, alpha):
-    e = np.atleast_1d(e)
-    x0 = np.full(e.size * 2, np.pi / 4)
-    # 'hybr' method is faster for small problems
-    s = root(_usadel, x0, args=(e, 1, alpha), method='hybr')
-    return s.x[0] + 1j * s.x[1]
 
 
 @nb.njit(cache=True)

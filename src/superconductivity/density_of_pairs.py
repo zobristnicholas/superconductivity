@@ -1,6 +1,6 @@
 import numpy as np
 import numba as nb
-from superconductivity.density_of_states import usadel_pair_angle
+from superconductivity.density_of_states import usadel_pairing_angle
 
 
 def dop_bcs(en, delta, real=True):
@@ -80,7 +80,7 @@ def dop_usadel(en, delta, alpha, real=True):
     dos: numpy.ndarray
         density of states as a function of en
     """
-    theta = usadel_pair_angle(en, delta, alpha)
+    theta = usadel_pairing_angle(en, delta, alpha)
     dop = np.sin(theta)
     return dop.real if real else dop.imag
 

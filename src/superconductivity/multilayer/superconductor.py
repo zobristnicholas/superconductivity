@@ -7,7 +7,7 @@ from scipy.constants import k, hbar
 from superconductivity.utils import BCS
 from superconductivity.multilayer.metal import Metal
 from superconductivity.gap_functions import delta_bcs
-from superconductivity.density_of_states import usadel_pair_angle
+from superconductivity.density_of_states import usadel_pairing_angle
 
 
 log = logging.getLogger(__name__)
@@ -123,7 +123,8 @@ class Superconductor(Metal):
                 i += 1
 
                 # Solve for the pair angle first
-                mtheta = usadel_pair_angle(1j * wn, self.order[0], self.alpha)
+                mtheta = usadel_pairing_angle(
+                    1j * wn, self.order[0], self.alpha)
                 self.mtheta[:] = mtheta
 
                 # Update the order parameter using the new pair angle.
@@ -138,7 +139,7 @@ class Superconductor(Metal):
 
             # Compute the pair angle with the new order parameter.
             log.debug("Computing the pair angle.")
-            theta = usadel_pair_angle(self.e, self.order[0], self.alpha)
+            theta = usadel_pairing_angle(self.e, self.order[0], self.alpha)
             self.theta[:] = theta[:, np.newaxis]
 
             # Compute the energy gap.
@@ -146,8 +147,7 @@ class Superconductor(Metal):
 
             def find_gap(e):
                 en = e * self.order[0]
-                th = usadel_pair_angle(en, self.order[0], self.alpha,
-                                       parallel=False)
+                th = usadel_pairing_angle(en, self.order[0], self.alpha)
                 return np.cos(th).real - self.threshold
 
             dos = np.cos(self.theta[:, 0]).real
