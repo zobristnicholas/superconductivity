@@ -113,6 +113,8 @@ def usadel_pairing_angle(en, delta, alpha):
     theta: numpy.ndarray
         The superconducting pairing angle as a function of en
     """
+    if delta == 0:
+        return np.full(np.array(en).shape, np.pi / 2)
     shape = np.array(en).shape
     en = np.array(en).ravel() / delta
     alpha = alpha / delta
