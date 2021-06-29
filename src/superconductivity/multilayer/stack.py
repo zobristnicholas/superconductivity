@@ -367,7 +367,11 @@ class Stack:
             log.warning("The gap energy varies significantly over the stack. "
                         "The average value was used for the tc.")
         gap = gap.mean()
-
+        # TODO: generalize for alpha != 0
+        if (np.array([layer.alpha for layer in self.layers]) != 0).any():
+            import warnings
+            warnings.warn("The Tc formula has not been verified for non-zero "
+                          "pair breaking parameters.")
         tc = gap * reduced_delta_bcs(self.t[0], approx=True) / (BCS * k)
         self.tc = tc[0]  # only need a scalar value
         log.info("Transition temperature computed.")
@@ -543,6 +547,7 @@ class Stack:
                 z[start:stop] = (self.z[start:stop] - np.sum(d[:i])) / d[i]
             else:
                 z[start:stop] = 1 - (self.z[start:stop] - np.sum(d[:i])) / d[i]
+        alpha = np.array([layer.alpha for layer in self.layers])
         # Round to avoid floating point errors.
         _, indices = np.unique(z.round(decimals=10), return_index=True)
         z_guess = z[indices]
@@ -551,7 +556,8 @@ class Stack:
                        "z_scale": np.array([(2 * self.scale * m.d**2
                                              / (hbar * m.dc))
                                             for m in self.layers]),
-                       "z_guess": z_guess}
+                       "z_guess": z_guess,
+                       "alpha": alpha / self.scale}
 
     def _get_threads(self):
         if self.threads is True:

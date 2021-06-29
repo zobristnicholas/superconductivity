@@ -1,7 +1,7 @@
 subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
                            interfaces, tol, n_threads, max_sub, d, rho, &
-                           z_scale, z_guess, n_layers, n_points, n_guess, &
-                           n_energy, n_min, theta, info)
+                           z_scale, alpha, z_guess, n_layers, n_points, &
+                           n_guess, n_energy, n_min, theta, info)
     use omp_lib
     use bvp_m
     implicit none
@@ -11,7 +11,7 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
     real(kind=dp), intent(in) :: boundaries(n_layers - 1), order(n_points)
     real(kind=dp), intent(in) :: energies(n_energy), z(n_points),  tol
     real(kind=dp), intent(in) :: d(n_layers), rho(n_layers), z_scale(n_layers)
-    real(kind=dp), intent(in) :: z_guess(n_guess)
+    real(kind=dp), intent(in) :: alpha(n_layers), z_guess(n_guess)
     real(kind=dp), intent(in) :: theta_old(2 * n_layers, n_min)
     real(kind=dp), intent(out) :: theta(n_energy, n_points)
     integer, intent(out) :: info
@@ -134,7 +134,9 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
             do ii = 1, n_layers
                 dydz(2 * ii - 1) = y(2 * ii)
                 dydz(2 * ii) = z_scale(ii) * (energy * sin(y(2 * ii - 1)) &
-                                - delta(z, ii) * cos(y(2 * ii - 1)))
+                                - delta(z, ii) * cos(y(2 * ii - 1)) &
+                                + alpha(ii) * sin(y(2 * ii - 1)) &
+                                    * cos(y(2 * ii - 1)))
             end do
         end subroutine f
 
@@ -150,7 +152,8 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
                 dfdy(2 * ii - 1, 2 * ii) = 1.0_dp
                 dfdy(2 * ii, 2 * ii - 1) = z_scale(ii) &
                         * (energy * cos(y(2 * ii - 1)) &
-                                + delta(z, ii) * sin(y(2 * ii - 1)))
+                                + delta(z, ii) * sin(y(2 * ii - 1)) &
+                                + alpha(ii) * cos(2 * y(2 * ii - 1)))
             end do
         end subroutine jac
 
@@ -204,9 +207,9 @@ end subroutine solve_imaginary
 
 
 subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
-                      tol, n_threads, max_sub, d, rho, z_scale, z_guess, &
-                      n_layers, n_points, n_guess, n_energy, n_min, theta, &
-                      info)
+                      tol, n_threads, max_sub, d, rho, z_scale, alpha, &
+                      z_guess, n_layers, n_points, n_guess, n_energy, n_min, &
+                      theta, info)
     use omp_lib
     use bvp_m
     implicit none
@@ -216,7 +219,7 @@ subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
     real(kind=dp), intent(in) :: boundaries(n_layers - 1), order(n_points)
     real(kind=dp), intent(in) :: energies(n_energy), z(n_points),  tol
     real(kind=dp), intent(in) :: d(n_layers), rho(n_layers), z_scale(n_layers)
-    real(kind=dp), intent(in) :: z_guess(n_guess)
+    real(kind=dp), intent(in) :: alpha(n_layers), z_guess(n_guess)
     complex(kind=dp), intent(in) :: theta_old(2 * n_layers, n_min)
     complex(kind=dp), intent(out) :: theta(n_energy, n_points)
     integer, intent(out) :: info
@@ -343,7 +346,8 @@ subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
             do ii = 1, n_layers
                 yc = y(2 * ii - 1) + j * y(n_eqns + 2 * ii - 1)
                 dydzc = -z_scale(ii) &
-                        * (j * energy * sin(yc) + delta(z, ii) * cos(yc))
+                        * (j * energy * sin(yc) + delta(z, ii) * cos(yc) &
+                                - alpha(ii) * sin(yc) * cos(yc))
                 ! real part
                 dydz(2 * ii - 1) = y(2 * ii)
                 dydz(2 * ii) = dydzc%re
@@ -365,7 +369,8 @@ subroutine solve_real(energies, z, theta_old, order, boundaries, interfaces, &
             do ii = 1, n_layers
                 yc = y(2 * ii - 1) + j * y(n_eqns + 2 * ii - 1)
                 dfdyc = z_scale(ii) &
-                        * (-j * energy * cos(yc) + delta(z, ii) * sin(yc))
+                        * (-j * energy * cos(yc) + delta(z, ii) * sin(yc) &
+                                + alpha(ii) * cos(2 * yc))
                 ! real part
                 dfdy(2 * ii - 1, 2 * ii) = 1.0_dp
                 dfdy(2 * ii, 2 * ii - 1) = dfdyc%re
