@@ -201,7 +201,7 @@ class Stack:
         r = np.inf
         i = 0
 
-        # Iterate between solving for the order and pair angle until the
+        # Iterate between solving for the order and pairing angle until the
         # order converges or we run out of iterations.
         while r > self.rtol and i < self.max_iterations:
             # Update the iteration counter.
@@ -218,9 +218,9 @@ class Stack:
                     stop = self.interfaces[ii + 1]
                     layer.order = order[start:stop] * self.scale
 
-            # Get the order parameter by the solving for the pair angle first.
+            # Solve for the pairing angle first.
             else:
-                # Make the guess from the last loop's pair angle.
+                # Make the guess from the last loop's pairing angle.
                 y_guess[::2, :] = np.array([m.mtheta.mean(axis=1)[:nmin]
                                             for m in self.layers])
 
@@ -240,7 +240,7 @@ class Stack:
                             stop = self.interfaces[iii + 1]
                             layer.mtheta[ii, :] = theta[ii, start:stop]
 
-                # Update the order parameter using the new pair angle.
+                # Update the order parameter using the new pairing angle.
                 for layer in self.layers:
                     layer.update_order()
 
@@ -255,11 +255,11 @@ class Stack:
 
     def update_theta(self):
         """
-        Update the pair angle for the entire stack based on the stack's
-        order parameter by solving the Usadel equation. Run
+        Update the pairing angle for the entire stack based on the
+        stack's order parameter by solving the Usadel equation. Run
         update_order() first if the order parameter is not up to date.
         """
-        log.info("Computing the pair angle for a stack.")
+        log.info("Computing the pairing angle for a stack.")
         # Initialize the guess.
         y_guess = np.zeros((2 * len(self.layers), self.e.size), dtype=complex)
         y_guess[::2, :] = np.pi / 4 + 1j * np.pi / 4
@@ -279,7 +279,7 @@ class Stack:
                 stop = self.interfaces[ii + 1]
                 layer.theta[i, :] = theta[i, start:stop]
 
-        log.info("Pair angle computed.")
+        log.info("Pairing angle computed.")
 
     def update_gap(self):
         """
@@ -349,7 +349,7 @@ class Stack:
 
                     log.warning("BVP_SOLVER failed to compute the gap "
                                 "energy, so the gap was computed by "
-                                "interpolating the pair angle over the "
+                                "interpolating the pairing angle over the "
                                 "precomputed energy grid.")
         log.info("Gap energy computed.")
 

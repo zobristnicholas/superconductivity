@@ -81,7 +81,7 @@ class Metal:
         Initialize calculation parameters to their bulk values at the
         grid locations.
         """
-        # Initialize the Matsubara energies and pair angles.
+        # Initialize the pairing angle at the Matsubara energies.
         self.mtheta = np.zeros((1, self.z.size))
 
         # Initialize the order parameter.
@@ -90,13 +90,13 @@ class Metal:
         # Initialize the gap energy.
         self.gap = np.zeros(self.z.size)
 
-        # Initialize the pair angle.
+        # Initialize the pairing angle.
         self.theta = np.zeros((self.e.size, self.z.size))
 
     def update_order(self):
         """
-        Update the order parameter from the pair angle at the Matsubara
-        frequencies.
+        Update the order parameter from the pairing angle at the
+        Matsubara frequencies.
         """
         # The superconducting interaction potential is  proportional to the
         # order parameter. In a normal metal, the interaction potential is

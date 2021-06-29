@@ -94,7 +94,7 @@ class Superconductor(Metal):
         g = delta_bcs(self.t, self.tc, interp=True, approx=True)
         self.gap = np.full(self.z.shape, g)
 
-        # Initialize the pair angle at the Matsubara energies.
+        # Initialize the pairing angle at the Matsubara energies.
         wn = (2 * np.arange(0, self.nc + 1) + 1) * np.pi * k * self.t
         wn = wn[:, np.newaxis]
         self.mtheta = np.arcsin(self.gap / np.sqrt(self.gap**2 + wn**2))
@@ -102,7 +102,7 @@ class Superconductor(Metal):
         # Initialize the order parameter.
         self.update_order()
 
-        # Initialize the pair angle.
+        # Initialize the pairing angle.
         self.theta = np.empty((self.e.size, self.z.size), dtype=complex)
         zero = (self.e == 0)
         self.theta[~zero, :] = np.arctan(1j * self.gap
@@ -122,12 +122,12 @@ class Superconductor(Metal):
                 # Update the iteration counter.
                 i += 1
 
-                # Solve for the pair angle first
+                # Solve for the pairing angle first
                 mtheta = usadel_pairing_angle(
                     1j * wn, self.order[0], self.alpha)
                 self.mtheta[:] = mtheta
 
-                # Update the order parameter using the new pair angle.
+                # Update the order parameter using the new pairing angle.
                 self.update_order()
 
                 # Save iteration history and evaluate convergence criteria.
@@ -137,8 +137,8 @@ class Superconductor(Metal):
                 last_order = self.order[0] / self.delta0
                 log.debug("Iteration: {:d} :: R: {:g}".format(i, r))
 
-            # Compute the pair angle with the new order parameter.
-            log.debug("Computing the pair angle.")
+            # Compute the pairing angle with the new order parameter.
+            log.debug("Computing the pairing angle.")
             theta = usadel_pairing_angle(self.e, self.order[0], self.alpha)
             self.theta[:] = theta[:, np.newaxis]
 
@@ -165,8 +165,8 @@ class Superconductor(Metal):
 
     def update_order(self):
         """
-        Update the order parameter from the pair angle at the Matsubara
-        frequencies.
+        Update the order parameter from the pairing angle at the
+        Matsubara frequencies.
         """
         tr = self.t / self.tc
         self.order = (2 * np.pi * k * self.t
