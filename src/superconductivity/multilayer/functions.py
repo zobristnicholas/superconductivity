@@ -67,7 +67,12 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
         temperatures = np.asarray(temperatures).ravel()
         stacks = [copy.deepcopy(stacks[0])] * temperatures.size
         for i, stack in enumerate(stacks):
-            stack.t = temperatures[i]
+            # We avoid setting the stack temperature with ```stack.t = t'''
+            # since it initializes the layers to their bulk properties. If we
+            # are updating the dos, the stack will be initialized when stack.e
+            # is set. If not, there's no reason to initialize the stack.
+            for layer in stack.layers:
+                layer.t = temperatures[i]
     elif temperatures is not None:
         raise ValueError("The 'temperatures' keyword argument can only be "
                          "used if only one stack is provided.")
@@ -84,8 +89,8 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
     for i, stack in enumerate(stacks):
         # If we are updating the stack, also use a better energy grid.
         if update:
-            hf = h * frequencies.max() / BCS * np.pi / stack.scale
             prefactor = BCS / np.pi * stack.scale
+            hf = h * frequencies.max() / prefactor
             stack.e = prefactor * np.linspace(0.0, 64.0 + hf, 20000)
         # Check that all stacks have the same energy grid.
         if (stack.e != stacks[0].e).any():
