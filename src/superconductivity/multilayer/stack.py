@@ -45,7 +45,7 @@ class Stack:
         self._e = None  # Set by the self.e setter.
 
         # Define computation parameters.
-        self.rtol = 1e-4  # relative convergence tolerance
+        self.rtol = 1e-5  # relative convergence tolerance
         self.max_iterations = 100  # maximum number of iterations to converge
         self.speedup = 10  # Do a Steffensen iteration every <SPEEDUP> times.
         self.threshold = 1e-3  # DOS threshold for determining the gap energy
@@ -111,11 +111,9 @@ class Stack:
         if hasattr(temperatures, '__len__'):
             for i, layer in enumerate(self.layers):
                 layer.t = temperatures[i]
-                layer.initialize_bulk()
         else:
             for layer in self.layers:
                 layer.t = temperatures
-                layer.initialize_bulk()
 
     @property
     def e(self):
@@ -127,7 +125,6 @@ class Stack:
         self._e = energies
         for layer in self.layers:
             layer.e = self.e
-            layer.initialize_bulk()
 
     def to_pickle(self, file_name):
         """Save the class instance to a pickle file."""
@@ -147,31 +144,41 @@ class Stack:
         log.info(f"Loaded {cls} from '{file_name}'.")
         return obj
 
-    def update(self):
+    def update(self, **kwargs):
         """
         Run all of the update routines to make the all of the class
         attributes consistent with the geometry. Note: this will likely
         compute more than you need, so if computation time is important,
         run only the routines required.
         """
-        self.update_dos()  # computes the density of states
+        self.update_dos(**kwargs)  # computes the density of states
         self.update_gap()  # compute the gap energy
         self.update_tc()  # computes the transition temperature
 
-    def update_dos(self):
+    def update_dos(self, **kwargs):
         """
         Update all of the attributes required to compute the density of
         states. This may be more work than required if the order
         parameter is already up to date.
         """
-        self.update_order()
+        self.update_order(**kwargs)
         self.update_theta()
 
-    def update_order(self):
+    def update_order(self, initialize=True):
         """
         Update the order parameter for the entire stack by solving the
         Usadel diffusion equation and self-consistency equation at the
         Matsubara energies.
+
+        Args:
+            initialize: boolean
+                Initialize the state of each layer of the stack to its
+                bulk state before starting the computation. This usually
+                results in a good starting point for fast convergence of
+                the algorithm.
+                If 'initialize' is False, a good starting point should
+                be set in each layer individually before running this
+                routine.
         """
         log.info("Computing the order parameter for a stack.")
         # Initialize all of the parameters to their bulk values
@@ -182,6 +189,11 @@ class Stack:
         # Enforce a constant temperature
         if not all([temperatures[0] == t for t in temperatures]):
             raise ValueError("All materials must have the same temperature.")
+
+        # Initialize to bulk
+        if initialize:
+            for layer in self.layers:
+                layer.initialize_bulk()
 
         # Determine the maximum and minimum Matsubara number
         nc = [m.nc for m in self.layers]
