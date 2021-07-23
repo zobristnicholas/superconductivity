@@ -4,14 +4,16 @@ import numpy as np
 from scipy.constants import h, mu_0, epsilon_0
 from scipy.interpolate import PchipInterpolator
 
-from superconductivity.utils import BCS
 from superconductivity.fermi_functions import fermi
 from superconductivity.multilayer.stack import Stack
+from superconductivity.utils import BCS, RotatingDict
 
 Z0 = np.sqrt(mu_0 / epsilon_0)  # free space impedance
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
+
+_precomputed_values = RotatingDict()
 
 
 def complex_conductivity(stacks, frequencies, temperatures=None,
@@ -75,6 +77,14 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
         temperatures = np.array([stack.t[0] for stack in stacks])
 
     frequencies = np.asarray(frequencies).ravel()
+
+    # Check to see if we've computed this value recently and return that value
+    # instead. This is useful for fitting codes which may query the same
+    # values multiple times.
+    key = (repr(stacks), frequencies.tostring(), temperatures.tostring(),
+           norm, update, squeeze)
+    if key in _precomputed_values.keys():
+        return _precomputed_values[key]
 
     # Check that there are the right number of stacks
     if len(stacks) != temperatures.size:
@@ -180,6 +190,10 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
     # Remove the extra dimensions.
     if squeeze:
         sigma = sigma.squeeze()
+
+    # Save the result so that we can skip the computation if we want the
+    # same values again.
+    _precomputed_values[key] = sigma
 
     return sigma
 
