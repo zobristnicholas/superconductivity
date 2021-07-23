@@ -73,6 +73,18 @@ class Superconductor(Metal):
         self.max_iterations = 100  # maximum number of iterations to converge
         self.threshold = 1e-3  # DOS threshold for determining the gap energy
 
+    def __str__(self):
+        string = (f"{self.__class__.__name__}("
+                  f"{self.d:g}, {self.rho:g}, {self.t:g}, {self.td:g}, "
+                  f"{self.tc:g}, dc={self.dc:g}, alpha={self.alpha:g})")
+        return string
+
+    def __repr__(self):
+        string = (f"{self.__module__}.{self.__class__.__name__}("
+                  f"{self.d}, {self.rho}, {self.t}, {self.td}, {self.tc}, "
+                  f"dc={self.dc}, alpha={self.alpha})")
+        return string
+
     @property
     def t(self):
         return self._t

@@ -58,6 +58,16 @@ class Metal:
         self.theta = None
         self.gap = None
 
+    def __str__(self):
+        string = (f"{self.__class__.__name__}("
+                  f"{self.d:g}, {self.rho:g}, {self.t:g}, dc={self.dc:g})")
+        return string
+
+    def __repr__(self):
+        string = (f"{self.__module__}.{self.__class__.__name__}("
+                  f"{self.d}, {self.rho}, {self.t}, dc={self.dc})")
+        return string
+
     def to_pickle(self, file_name):
         """Save the class instance to a pickle file."""
         with open(file_name, "wb") as f:

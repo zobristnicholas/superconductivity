@@ -91,6 +91,18 @@ class Stack:
         # Update the material dependent arguments to the BVP solver.
         self._update_args()
 
+    def __str__(self):
+        string = self.layers[0].__str__()
+        for bnd, layer in zip(self.boundaries, self.layers[1:]):
+            string += f",\n{bnd},\n" + layer.__str__()
+        return "[" + string + "]"
+
+    def __repr__(self):
+        string = self.layers[0].__repr__()
+        for bnd, layer in zip(self.boundaries, self.layers[1:]):
+            string += f", {bnd}, " + layer.__repr__()
+        return "[" + string + "]"
+
     @property
     def d(self):
         """The total thickness of the stack."""
