@@ -4,8 +4,6 @@ from setuptools import find_packages
 from distutils.util import get_platform
 from numpy.distutils.core import setup, Extension
 
-version_number = '0.0'
-
 
 def get_version(path):
     with open(path, "r") as f:
@@ -28,14 +26,15 @@ extension = Extension(name="superconductivity.multilayer.usadel",
                       sources=["src/superconductivity/multilayer/usadel.f90"],
                       libraries=["bvp_m-2", "bvp_la-2", "pchip"],
                       include_dirs=["build/temp" + platform],
-                      extra_f90_compile_args=["-fopenmp"])
+                      extra_f90_compile_args=["-fopenmp"],
+                      extra_link_args=['-lgomp'])
 
 setup(name='superconductivity',
       description='Tools for computing the properties of superconductors',
       version=get_version("src/superconductivity/__init__.py"),
       author='Nicholas Zobrist',
       license='GPLv3',
-      url='http://github.com/zobristnicholas/superconductivity',
+      url='https://github.com/zobristnicholas/superconductivity',
       packages=find_packages('src'),
       package_dir={'': 'src'},
       long_description=open('README.md').read(),
@@ -51,8 +50,7 @@ setup(name='superconductivity',
       include_package_data=True,
       package_data={'': ['*.npz']},
       libraries=[('bvp_m-2', dict(sources=['external/bvp_m-2.f90'],
-                                  extra_compile_args=["-std=f95"],
-                                  extra_f90_compile_args=["-fopenmp"])),
+                                  extra_compile_args=["-std=f95"])),
                  ('bvp_la-2', dict(sources=['external/bvp_la-2.f'],
                                    extra_compile_args=["-std=legacy"])),
                  ('pchip', dict(sources=['external/pchip.f90'],
