@@ -67,7 +67,7 @@ def complex_conductivity(stacks, frequencies, temperatures=None,
         temperatures = np.array([stacks[0].t[0]])
     elif len(stacks) == 1 and temperatures is not None:
         temperatures = np.asarray(temperatures).ravel()
-        stacks = [copy.deepcopy(stacks[0])] * temperatures.size
+        stacks = [copy.deepcopy(stacks[0]) for i in range(temperatures.size)]
         for i, stack in enumerate(stacks):
             stack.t = temperatures[i]
     elif temperatures is not None:
