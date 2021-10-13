@@ -147,7 +147,8 @@ def initialize_worker():
 def map_async_stoppable(pool, func, iterable, callback=None):
     results = MapResult()
     for item in iterable:
-        results.append(pool.apply_async(func, (item,), callback=callback))
+        results.append(pool.apply_async(func, cast_to_list(item),
+                                        callback=callback))
     return results
 
 

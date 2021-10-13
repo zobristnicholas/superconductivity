@@ -4,8 +4,6 @@ import numpy as np
 import numba as nb
 from scipy.optimize import root
 
-from superconductivity.utils import initialize_worker, map_async_stoppable
-
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
