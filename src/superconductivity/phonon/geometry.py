@@ -124,7 +124,7 @@ class Geometry:
         seeds = self.rng.integers(1, 100000, size=mode_types.size)
 
         # Loop over phonons.
-        times = np.empty(n)
+        times = np.empty((n, self.z.size - 1))
         args = zip(positions, directions, modes, seeds)
         parallel = mp.cpu_count() // 2 if parallel is True else parallel
         if parallel:  # calculate the escape times in parallel
@@ -143,18 +143,18 @@ class Geometry:
                     raise error
                 finally:
                     for index, result in enumerate(results.get()):
-                        times[index] = result
+                        times[index, :] = result
                     log.info("Retrieved results from parallel computation")
         else:  # calculate the escape times serially
             for index, arg in enumerate(args):
-                times[index] = self.escape(*arg)
+                times[index, :] = self.escape(*arg)
                 log.info(f"Phonon {index} escaped in {times[index]}")
         return times
 
     def escape(self, position, direction, mode, seed, plot=False):
         init = [position, direction, mode, seed]
         rng = np.random.default_rng(seed=seed)
-        total_time = 0
+        total_time = np.zeros(self.z.size - 1)
         i = 0
         stop = False
         x, z, axes = [], [], None  # for plotting
@@ -182,9 +182,9 @@ class Geometry:
                 break
 
             # Get the next position, direction, mode, and time.
-            position, direction, mode, time, stop = self.propagate(
+            position, direction, mode, time, level, stop = self.propagate(
                 position, direction, mode, rng)
-            total_time += time
+            total_time[level - 1] += time
 
             # Increment the iteration counter.
             i += 1
@@ -253,7 +253,7 @@ class Geometry:
         speed = self.cl[level] if longitudinal else self.ct[level]
         time = np.linalg.norm(position - new_position) / speed
         stop = (new_position[2] == 0 and new_direction[2] < 0)
-        return new_position, new_direction, new_mode, time, stop
+        return new_position, new_direction, new_mode, time, level, stop
 
     @staticmethod
     def intersection(position, direction, plane_point, plane_normal):
