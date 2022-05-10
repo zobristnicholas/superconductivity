@@ -1,4 +1,4 @@
-__version__ = "0.0"
+__version__ = "0.1"
 
 import superconductivity.complex_conductivity
 import superconductivity.density_of_states
