@@ -209,7 +209,7 @@ def mattis_bardeen_numeric(temp, freq, tc, bcs=BCS, parallel=False):
     # make pool if needed
     close = True if parallel is True else False
     if parallel is True:
-        parallel = mp.Pool(processes=mp.cpu_count())
+        parallel = mp.get_context('fork').Pool(processes=mp.cpu_count() // 2)
     # compute the integral by looping over inputs
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)  # multiply inf by 0 warning
@@ -268,7 +268,7 @@ def dynes_numeric(temp, freq, gamma, tc, bcs=BCS, parallel=False):
     # make pool if needed
     close = True if parallel is True else False
     if parallel is True:
-        parallel = mp.Pool(processes=mp.cpu_count())
+        parallel = mp.get_context('fork').Pool(processes=mp.cpu_count() // 2)
     # compute the integral by looping over inputs
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)  # multiply inf by 0 warning
