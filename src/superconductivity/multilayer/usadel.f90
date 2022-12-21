@@ -2,7 +2,7 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
                            interfaces, tol, n_threads, max_sub, d, rho, &
                            z_scale, alpha, z_guess, n_layers, n_points, &
                            n_guess, n_energy, n_min, theta, info)
-    use omp_lib
+    ! use omp_lib
     use bvp_m
     implicit none
     integer, parameter :: dp=kind(1d0)
@@ -27,7 +27,7 @@ subroutine solve_imaginary(energies, z, theta_old, order, boundaries, &
     info = 0
 
     ! Set the maximum number of threads to use for the calculation.
-    call omp_set_num_threads(n_threads)
+    ! call omp_set_num_threads(n_threads)
 
     ! There are two times as many equations as there are layers.
     n_eqns = 2 * n_layers
