@@ -21,7 +21,7 @@ def get_version(path):
 # generate the name as in numpy's distutils. This will break if numpy ever
 # changes their specification. It works as of 1.19.2 (line 34 of build.py):
 # https://github.com/numpy/numpy/blob/v1.19.2/numpy/distutils/command/build.py
-platform = ".{}-{}.{}".format(get_platform(), *sys.version_info[:2])
+platform = ".{}-cpython-{}.{}".format(get_platform(), *sys.version_info[:2])
 extension = Extension(name="superconductivity.multilayer.usadel",
                       sources=["src/superconductivity/multilayer/usadel.f90"],
                       libraries=["bvp_m-2", "bvp_la-2", "pchip"],
